@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Overview · Casework{% endblock %}
+{% block main_class %}dashboard-container{% endblock %}
 {% block content %}
-<div class="dashboard-head">
-  <div>
-    <p class="eyebrow">GRIEVANCE OPERATIONS <span class="eyebrow-rule"></span> DEMO WORKSPACE</p>
-    <h1>Institution case<br>oversight<span class="title-period">.</span></h1>
-    <p class="lead">One view of incoming grievances, bureau workload and cases that need a human follow-up.</p>
+<section class="dashboard-hero" aria-labelledby="dashboard-title">
+  <div class="hero-copy">
+    <p class="hero-kicker"><span class="live-dot"></span> ONE COORDINATED VIEW <span class="hero-divider">/</span> DEMO WORKSPACE</p>
+    <h1 id="dashboard-title">Every case deserves<br>a clear path forward.</h1>
+    <p>Bring institution complaints into one place, see where attention is needed, and keep follow-up visible across every bureau.</p>
+    <div class="hero-actions"><a class="button hero-primary" href="{% url 'complaints:case_list' %}">Review case register <span aria-hidden="true">→</span></a><a class="hero-secondary" href="{% url 'complaints:import' %}">Import case data <span aria-hidden="true">↗</span></a></div>
+    <div class="hero-footnote"><span class="hero-footnote-mark" aria-hidden="true">✓</span> Built for clear, accountable institutional follow-up</div>
   </div>
-  <a class="button primary intake-button" href="{% url 'complaints:import' %}"><span aria-hidden="true">＋</span> Import case data</a>
+  <div class="hero-caption"><span class="caption-line"></span><span>INSTITUTIONAL CASEWORK</span><small>Connected teams. Clearer follow-up.</small></div>
+</section>
+
+<div class="dashboard-head section-intro">
+  <div><p class="eyebrow">THE OPERATIONAL PICTURE <span class="eyebrow-rule"></span> CURRENT WORKLOAD</p><h2>Cases at a glance</h2><p class="lead">A live snapshot of the records in this demonstration workspace.</p></div>
+  <span class="data-badge"><span></span> DEMONSTRATION DATA</span>
 </div>
 
 <section class="overview-grid" aria-label="Current workload">
@@ -34,10 +42,19 @@
   </article>
 </section>
 
+<section class="workflow-section" aria-labelledby="workflow-title">
+  <div class="workflow-intro"><p class="eyebrow">A PRACTICAL WORKFLOW</p><h2 id="workflow-title">From intake to follow-up</h2><p>Make each hand-off easier to see, from the first imported record to the next action.</p></div>
+  <div class="workflow-steps">
+    <article class="workflow-step"><span class="workflow-number">01</span><div class="workflow-icon intake-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M20 5v20m0 0 7-7m-7 7-7-7M8 25v7a3 3 0 0 0 3 3h18a3 3 0 0 0 3-3v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Bring records together</h3><p>Import a CSV and keep the source details attached to every case.</p></article>
+    <article class="workflow-step"><span class="workflow-number">02</span><div class="workflow-icon match-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><circle cx="17" cy="17" r="9" stroke="currentColor" stroke-width="2"/><path d="m24 24 9 9M13 17h8m-4-4v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><h3>Connect to an institution</h3><p>Review matched records and surface names that still need attention.</p></article>
+    <article class="workflow-step"><span class="workflow-number">03</span><div class="workflow-icon follow-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="m8 20 8 8L32 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="20" r="15" stroke="currentColor" stroke-width="2"/></svg></div><h3>Keep follow-up visible</h3><p>See escalations, overdue items and recent updates in one shared view.</p></article>
+  </div>
+</section>
+
 <div class="dashboard-columns">
   <section class="surface attention-panel">
     <div class="section-heading">
-      <div><p class="eyebrow">FOLLOW-UP QUEUE</p><h2>Needs a closer look</h2></div>
+      <div><p class="eyebrow">PRIORITY FOLLOW-UP</p><h2>Cases needing attention</h2></div>
       <span class="count-pill">{{ attention_cases|length }} shown</span>
     </div>
     {% if attention_cases %}
@@ -58,7 +75,7 @@
 
   <section class="surface distribution-panel">
     <div class="section-heading">
-      <div><p class="eyebrow">WHERE WORK SITS</p><h2>Bureau workload</h2></div>
+      <div><p class="eyebrow">WORK DISTRIBUTION</p><h2>Cases by bureau</h2></div>
       <span class="quiet-label">BY CASE COUNT</span>
     </div>
     {% if bureau_load %}
@@ -86,7 +103,7 @@
 
 <section class="surface recent-panel">
   <div class="section-heading recent-heading">
-    <div><p class="eyebrow">LATEST INTAKE</p><h2>Recent cases</h2></div>
+    <div><p class="eyebrow">RECENT ACTIVITY</p><h2>Latest cases in the register</h2></div>
     <a class="quiet-link" href="{% url 'complaints:case_list' %}">Full case register <span aria-hidden="true">↗</span></a>
   </div>
   <div class="table-wrap"><table class="dashboard-table">
@@ -106,3 +123,4 @@
   </table></div>
 </section>
 {% endblock %}
+
