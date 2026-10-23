@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Overview · Casework{% endblock %}
+{% block content %}
+<div class="dashboard-head">
+  <div>
+    <p class="eyebrow">GRIEVANCE OPERATIONS <span class="eyebrow-rule"></span> DEMO WORKSPACE</p>
+    <h1>Institution case<br>oversight<span class="title-period">.</span></h1>
+    <p class="lead">One view of incoming grievances, bureau workload and cases that need a human follow-up.</p>
+  </div>
+  <a class="button primary intake-button" href="{% url 'complaints:import' %}"><span aria-hidden="true">＋</span> Import case data</a>
+</div>
+
+<section class="overview-grid" aria-label="Current workload">
+  <article class="workload-card workload-primary">
+    <div class="metric-top"><span>All cases</span><span class="metric-index">01 / REGISTER</span></div>
+    <strong>{{ total_cases|stringformat:"02d" }}</strong>
+    <div class="metric-foot"><span>Records in the register</span><a href="{% url 'complaints:case_list' %}">Open register <span aria-hidden="true">↗</span></a></div>
+    <span class="metric-watermark" aria-hidden="true">C</span>
+  </article>
+  <article class="workload-card">
+    <div class="metric-top"><span>Open workload</span><span class="metric-dot dot-blue"></span></div>
+    <strong>{{ open_cases|stringformat:"02d" }}</strong>
+    <div class="metric-foot"><span>Not yet marked disposed</span><a href="{% url 'complaints:case_list' %}">Review cases <span aria-hidden="true">↗</span></a></div>
+  </article>
+  <article class="workload-card">
+    <div class="metric-top"><span>Escalated</span><span class="metric-dot dot-rust"></span></div>
+    <strong>{{ escalated_cases|stringformat:"02d" }}</strong>
+    <div class="metric-foot"><span>Requires senior attention</span><a href="{% url 'complaints:case_list' %}?status=escalated">View escalations <span aria-hidden="true">↗</span></a></div>
+  </article>
+  <article class="workload-card">
+    <div class="metric-top"><span>Institution to resolve</span><span class="metric-dot dot-amber"></span></div>
+    <strong>{{ unmatched_cases|stringformat:"02d" }}</strong>
+    <div class="metric-foot"><span>Case has no linked institution</span><a href="{% url 'complaints:case_list' %}">Review register <span aria-hidden="true">↗</span></a></div>
+  </article>
+</section>
+
+<div class="dashboard-columns">
+  <section class="surface attention-panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">FOLLOW-UP QUEUE</p><h2>Needs a closer look</h2></div>
+      <span class="count-pill">{{ attention_cases|length }} shown</span>
+    </div>
+    {% if attention_cases %}
+      <div class="attention-list">
+        {% for case in attention_cases %}
+        <a class="attention-row" href="{% url 'complaints:case_detail' case.pk %}">
+          <span class="attention-icon {% if case.status == 'escalated' %}icon-escalated{% elif not case.institution %}icon-unmatched{% else %}icon-overdue{% endif %}" aria-hidden="true">{% if case.status == 'escalated' %}↑{% elif not case.institution %}?{% else %}!{% endif %}</span>
+          <span class="attention-copy"><strong>{{ case.case_number|default:case.source_case_id }}</strong><small>{{ case.institution.name|default:case.raw_institution_name|default:"Institution not identified" }} · {{ case.bureau.code }}</small></span>
+          <span class="attention-reason">{% if case.status == 'escalated' %}Escalated{% elif not case.institution %}Match needed{% else %}Past due{% endif %}</span>
+          <span class="row-arrow" aria-hidden="true">↗</span>
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="queue-empty"><span aria-hidden="true">✓</span><div><strong>Nothing in the follow-up queue</strong><p>Escalated, unmatched and overdue cases will appear here.</p></div></div>
+    {% endif %}
+  </section>
+
+  <section class="surface distribution-panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">WHERE WORK SITS</p><h2>Bureau workload</h2></div>
+      <span class="quiet-label">BY CASE COUNT</span>
+    </div>
+    {% if bureau_load %}
+      <div class="bureau-list">
+        {% for bureau in bureau_load %}
+        <div class="bureau-item">
+          <div class="bureau-label"><span><strong>{{ bureau.code }}</strong><small>{{ bureau.name }}</small></span><b>{{ bureau.case_count|stringformat:"02d" }}</b></div>
+          <div class="bar-track" aria-label="{{ bureau.case_count }} cases"><span style="width:{{ bureau.load_percent }}%"></span></div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="quiet-empty">Bureau counts will appear when case records are imported.</div>
+    {% endif %}
+    <div class="status-strip">
+      <p class="eyebrow">STATUS MIX</p>
+      <div class="status-mix">
+        {% for label,count,value in status_rows %}
+        <div class="status-mix-item"><span class="status-marker marker-{{ value }}"></span><span>{{ label }}</span><b>{{ count }}</b></div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="surface recent-panel">
+  <div class="section-heading recent-heading">
+    <div><p class="eyebrow">LATEST INTAKE</p><h2>Recent cases</h2></div>
+    <a class="quiet-link" href="{% url 'complaints:case_list' %}">Full case register <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="table-wrap"><table class="dashboard-table">
+    <thead><tr><th>Case reference</th><th>Institution</th><th>Bureau</th><th>Issue type</th><th>Current state</th><th>Received</th></tr></thead>
+    <tbody>
+      {% for case in recent_cases %}
+      <tr>
+        <td><a class="case-reference" href="{% url 'complaints:case_detail' case.pk %}">{{ case.case_number|default:case.source_case_id }}</a><small>{{ case.source_system }}</small></td>
+        <td>{% if case.institution %}<a class="institution-name" href="{% url 'complaints:institution_detail' case.institution_id %}">{{ case.institution.name }}</a>{% else %}<span class="unresolved-name">{{ case.raw_institution_name|default:"Unresolved" }}</span>{% endif %}</td>
+        <td><span class="bureau-tag">{{ case.bureau.code }}</span></td>
+        <td>{{ case.category|default:"—" }}</td>
+        <td><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></td>
+        <td class="date-cell">{% if case.received_at %}{{ case.received_at|date:"j M Y" }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="empty">No cases yet. Import the synthetic demonstration CSV to populate the overview.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

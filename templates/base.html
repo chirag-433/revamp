@@ -4,15 +4,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Institution Case Tracker{% endblock %}</title>
+  <title>{% block title %}Casework · Institution Grievance Monitor{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'complaints/site.css' %}">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{% url 'complaints:case_list' %}">Institution Case Tracker</a>
+    <a class="brand" href="{% url 'complaints:dashboard' %}"><span class="brand-mark">C</span><span>CASEWORK<small>Institution grievance monitor</small></span></a>
     <nav aria-label="Main navigation">
-      <a href="{% url 'complaints:case_list' %}">Cases</a>
-      <a href="{% url 'complaints:import' %}">Import CSV</a>
+      <a href="{% url 'complaints:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
+      <a href="{% url 'complaints:case_list' %}" {% if request.resolver_match.url_name == 'case_list' or request.resolver_match.url_name == 'case_detail' %}aria-current="page"{% endif %}>Case register</a>
+      <a href="{% url 'complaints:import' %}" {% if request.resolver_match.url_name == 'import' %}aria-current="page"{% endif %}>Data intake</a>
       <a href="/admin/">Admin</a>
     </nav>
   </header>

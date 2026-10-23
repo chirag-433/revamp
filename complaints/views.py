@@ -1,10 +1,54 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .models import BureauCell, CanonicalStatus, ComplaintCase, Institution
 from .services.csv_import import CSVImportError, import_cases_csv
+
+
+def dashboard(request):
+    cases = ComplaintCase.objects.select_related("institution", "bureau")
+    total = cases.count()
+    open_cases = cases.exclude(status=CanonicalStatus.DISPOSED).count()
+    escalated = cases.filter(status=CanonicalStatus.ESCALATED).count()
+    unmatched = cases.filter(institution__isnull=True).count()
+    needs_attention = cases.filter(
+        Q(status=CanonicalStatus.ESCALATED)
+        | Q(institution__isnull=True)
+        | (
+            Q(sla_due_at__lt=timezone.now())
+            & ~Q(status=CanonicalStatus.DISPOSED)
+        )
+    ).order_by("sla_due_at", "-received_at")[:6]
+    bureau_load = list(
+        BureauCell.objects.filter(is_active=True)
+        .annotate(case_count=Count("cases"))
+        .filter(case_count__gt=0)
+        .order_by("-case_count", "name")
+    )
+    max_load = max((bureau.case_count for bureau in bureau_load), default=1)
+    for bureau in bureau_load:
+        bureau.load_percent = round(bureau.case_count / max_load * 100)
+
+    return render(
+        request,
+        "complaints/dashboard.html",
+        {
+            "total_cases": total,
+            "open_cases": open_cases,
+            "escalated_cases": escalated,
+            "unmatched_cases": unmatched,
+            "attention_cases": needs_attention,
+            "recent_cases": cases.order_by("-received_at", "-id")[:6],
+            "bureau_load": bureau_load,
+            "status_rows": [
+                (label, cases.filter(status=value).count(), value)
+                for value, label in CanonicalStatus.choices
+            ],
+        },
+    )
 
 
 def case_list(request):
