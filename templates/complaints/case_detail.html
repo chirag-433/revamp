@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ case }} · Institution Case Tracker{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / {{ case }}</p>
+<div class="page-heading"><div><p class="eyebrow">{{ case.source_system }} · {{ case.source_case_id }}</p><h1>{{ case.case_number|default:case.source_case_id }}</h1><p class="muted">{{ case.bureau.code }} — {{ case.bureau.name }}</p></div><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></div>
+<div class="detail-grid">
+  <section class="panel"><div class="panel-heading"><h2>Case information</h2></div><dl class="details">
+    <dt>Institution</dt><dd>{% if case.institution %}<a href="{% url 'complaints:institution_detail' case.institution_id %}">{{ case.institution.name }}</a>{% else %}{{ case.raw_institution_name|default:"Not provided" }}{% endif %}</dd>
+    <dt>Institution match</dt><dd>{{ case.get_match_status_display }}</dd>
+    <dt>Category</dt><dd>{{ case.category|default:"—" }}</dd>
+    <dt>Source status</dt><dd>{{ case.source_status|default:"—" }}</dd>
+    <dt>Assigned officer</dt><dd>{{ case.assigned_officer|default:"—" }}</dd>
+    <dt>Received</dt><dd>{{ case.received_at|date:"j M Y, H:i"|default:"—" }}</dd>
+    <dt>Last action</dt><dd>{{ case.last_action_at|date:"j M Y, H:i"|default:"—" }}</dd>
+    <dt>Next action</dt><dd>{{ case.next_action|default:"—" }}</dd>
+    <dt>SLA due</dt><dd>{{ case.sla_due_at|date:"j M Y, H:i"|default:"—" }}</dd>
+  </dl></section>
+  <section class="panel"><div class="panel-heading"><h2>Description</h2></div><p class="prose">{{ case.description|default:"No description was supplied."|linebreaksbr }}</p></section>
+</div>
+<section class="panel"><div class="panel-heading"><h2>Source action history</h2></div><div class="timeline">
+  {% for action in case.actions.all %}<article class="timeline-item"><time>{{ action.acted_at|date:"j M Y, H:i" }}</time><div><strong>{{ action.action_type|capfirst }}</strong><p>{{ action.remarks|default:"No remarks supplied." }}</p><small>{{ action.actor_label|default:"Source record" }}</small></div></article>
+  {% empty %}<p class="empty">No action history was supplied for this case.</p>{% endfor %}
+</div></section>
+{% endblock %}
+

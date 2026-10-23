@@ -1,0 +1,30 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Institution Case Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'complaints/site.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'complaints:case_list' %}">Institution Case Tracker</a>
+    <nav aria-label="Main navigation">
+      <a href="{% url 'complaints:case_list' %}">Cases</a>
+      <a href="{% url 'complaints:import' %}">Import CSV</a>
+      <a href="/admin/">Admin</a>
+    </nav>
+  </header>
+  <main class="container">
+    {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Prototype data only. Do not upload real complainant information.</footer>
+</body>
+</html>
+

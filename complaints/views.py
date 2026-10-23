@@ -1,0 +1,82 @@
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .models import BureauCell, CanonicalStatus, ComplaintCase, Institution
+from .services.csv_import import CSVImportError, import_cases_csv
+
+
+def case_list(request):
+    cases = ComplaintCase.objects.select_related("institution", "bureau")
+    query = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    bureau = request.GET.get("bureau", "").strip()
+    if query:
+        cases = cases.filter(
+            Q(case_number__icontains=query)
+            | Q(source_case_id__icontains=query)
+            | Q(raw_institution_name__icontains=query)
+            | Q(institution__name__icontains=query)
+        )
+    if status in CanonicalStatus.values:
+        cases = cases.filter(status=status)
+    if bureau.isdigit():
+        cases = cases.filter(bureau_id=int(bureau))
+    paginator = Paginator(cases, 25)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "complaints/case_list.html",
+        {
+            "page": page,
+            "bureaus": BureauCell.objects.filter(is_active=True),
+            "statuses": CanonicalStatus.choices,
+            "filters": {"q": query, "status": status, "bureau": bureau},
+            "total_cases": ComplaintCase.objects.count(),
+            "unmapped_institutions": ComplaintCase.objects.filter(institution__isnull=True).count(),
+        },
+    )
+
+
+def case_detail(request, pk):
+    case = get_object_or_404(
+        ComplaintCase.objects.select_related("institution", "bureau").prefetch_related("actions"),
+        pk=pk,
+    )
+    return render(request, "complaints/case_detail.html", {"case": case})
+
+
+def institution_detail(request, pk):
+    institution = get_object_or_404(Institution, pk=pk)
+    cases = institution.cases.select_related("bureau").order_by("-received_at", "-id")
+    return render(
+        request,
+        "complaints/institution_detail.html",
+        {"institution": institution, "cases": cases},
+    )
+
+
+def import_cases(request):
+    if request.method == "POST":
+        uploaded_file = request.FILES.get("csv_file")
+        if uploaded_file is None:
+            messages.error(request, "Choose a CSV file to import.")
+            return redirect("complaints:import")
+        try:
+            result = import_cases_csv(uploaded_file)
+        except CSVImportError as exc:
+            messages.error(request, str(exc))
+            return redirect("complaints:import")
+        messages.success(
+            request,
+            f"Import finished: {result.created} created, {result.updated} updated, "
+            f"{len(result.errors)} row errors.",
+        )
+        return render(
+            request,
+            "complaints/import_result.html",
+            {"result": result},
+        )
+    return render(request, "complaints/import.html")
+
