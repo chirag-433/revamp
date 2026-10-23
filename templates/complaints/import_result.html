@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Import result · Institution Case Tracker{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">CSV INGESTION</p><h1>Import complete</h1><p class="muted">Valid rows were saved. Rejected rows were skipped and are listed below.</p></div></div>
+<section class="summary-grid"><div class="summary-card"><span>Created</span><strong>{{ result.created }}</strong></div><div class="summary-card"><span>Updated</span><strong>{{ result.updated }}</strong></div><div class="summary-card"><span>Row errors</span><strong>{{ result.errors|length }}</strong></div></section>
+{% if result.errors %}<section class="panel"><div class="panel-heading"><h2>Rows to correct</h2></div><ul class="error-list">{% for error in result.errors %}<li>{{ error }}</li>{% endfor %}</ul></section>{% endif %}
+<a class="button primary" href="{% url 'complaints:case_list' %}">View cases</a> <a class="button" href="{% url 'complaints:import' %}">Import another file</a>
+{% endblock %}
+

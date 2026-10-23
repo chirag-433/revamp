@@ -1,0 +1,4 @@
+source_system,source_case_id,case_number,bureau_code,institution_permanent_id,institution_name,category,description,source_status,assigned_officer,received_at,last_action_at,next_action,sla_due_at,action_remarks
+DEMO,DEMO-CSV-7001,CSV-7001,RB,DEMO-0001,Sahyadri Institute of Technology,Facilities,Synthetic CSV example requesting a laboratory inspection,received,Demo Officer,2026-09-12T10:00:00+05:30,2026-09-13T10:00:00+05:30,Review submitted documents,2026-10-12T10:00:00+05:30,Initial synthetic review recorded
+DEMO,DEMO-CSV-7002,CSV-7002,PGRC,,Unmatched Synthetic College,Student services,Synthetic CSV example with no institution ID,in progress,Demo Officer,2026-09-14T09:30:00+05:30,,Confirm institution record,2026-10-14T09:30:00+05:30,
+

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ institution.name }} · Institution Case Tracker{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / Institution</p>
+<div class="page-heading"><div><p class="eyebrow">INSTITUTION PROFILE</p><h1>{{ institution.name }}</h1><p class="muted">{{ institution.aicte_permanent_id|default:"No Permanent ID recorded" }}</p></div></div>
+<section class="panel"><div class="panel-heading"><h2>Institution details</h2></div><dl class="details">
+  <dt>District</dt><dd>{{ institution.district|default:"—" }}</dd><dt>State</dt><dd>{{ institution.state|default:"—" }}</dd>
+  <dt>Region</dt><dd>{{ institution.region|default:"—" }}</dd><dt>Address</dt><dd>{{ institution.address|default:"—"|linebreaksbr }}</dd>
+</dl></section>
+<section class="panel"><div class="panel-heading"><h2>Cases</h2><span class="muted">{{ cases|length }} total</span></div><div class="table-wrap"><table>
+  <thead><tr><th>Case</th><th>Bureau / Cell</th><th>Category</th><th>Status</th><th>Received</th></tr></thead><tbody>
+  {% for case in cases %}<tr><td><a class="strong-link" href="{% url 'complaints:case_detail' case.pk %}">{{ case.case_number|default:case.source_case_id }}</a><small>{{ case.source_system }} · {{ case.source_case_id }}</small></td><td>{{ case.bureau.code }}<small>{{ case.bureau.name }}</small></td><td>{{ case.category|default:"—" }}</td><td><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></td><td>{{ case.received_at|date:"j M Y"|default:"—" }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="empty">No cases are linked to this institution.</td></tr>{% endfor %}
+  </tbody></table></div></section>
+{% endblock %}
+

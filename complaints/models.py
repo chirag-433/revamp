@@ -49,11 +49,21 @@ class Institution(models.Model):
 
     class Meta:
         ordering = ["name"]
-        indexes = [models.Index(fields=["state", "district"])]
+        indexes = [
+            models.Index(
+                fields=["state", "district"], name="complaints__state_district_idx"
+            )
+        ]
 
     def __str__(self):
         identifier = self.aicte_permanent_id or "no Permanent ID"
         return f"{self.name} ({identifier})"
+
+    def save(self, *args, **kwargs):
+        from .services.normalization import normalize_institution_name
+
+        self.normalized_name = normalize_institution_name(self.name)
+        super().save(*args, **kwargs)
 
 
 class InstitutionAlias(models.Model):
@@ -75,6 +85,12 @@ class InstitutionAlias(models.Model):
 
     def __str__(self):
         return f"{self.alias} -> {self.institution.name}"
+
+    def save(self, *args, **kwargs):
+        from .services.normalization import normalize_institution_name
+
+        self.normalized_alias = normalize_institution_name(self.alias)
+        super().save(*args, **kwargs)
 
 
 class StatusMap(models.Model):
@@ -147,8 +163,12 @@ class ComplaintCase(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["bureau", "status"]),
-            models.Index(fields=["institution", "status"]),
+            models.Index(
+                fields=["bureau", "status"], name="complaints__bureau__stat_idx"
+            ),
+            models.Index(
+                fields=["institution", "status"], name="complaints__institut_stat_idx"
+            ),
         ]
         ordering = ["-received_at", "-id"]
 
@@ -244,7 +264,11 @@ class CaseLink(models.Model):
                 name="case_link_must_connect_distinct_cases",
             ),
         ]
-        indexes = [models.Index(fields=["review_state", "link_type"]) ]
+        indexes = [
+            models.Index(
+                fields=["review_state", "link_type"], name="complaints__review__link_idx"
+            )
+        ]
         ordering = ["-created_at"]
 
     def clean(self):
@@ -280,3 +304,4 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} {self.entity_type}:{self.entity_id}"
+
