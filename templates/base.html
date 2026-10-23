@@ -26,6 +26,8 @@
     {% block content %}{% endblock %}
   </main>
   <footer class="footer">Prototype data only. Do not upload real complainant information.</footer>
+  <div class="cursor-overlay" aria-hidden="true"><span class="cursor-center"></span><span class="cursor-label"></span></div>
+  <script src="{% static 'complaints/cursor.js' %}" defer></script>
 </body>
 </html>
 
