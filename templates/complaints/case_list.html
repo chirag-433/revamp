@@ -18,12 +18,18 @@
   </div>
 </section>
 <form class="filter-panel" method="get">
-  <label>Search<input type="search" name="q" value="{{ filters.q }}" placeholder="Case number or institution"></label>
-  <label>Status<select name="status"><option value="">All statuses</option>{% for value,label in statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Institution<input type="search" name="institution" value="{{ filters.institution }}" placeholder="Institution name"></label>
+  <label>Permanent ID<input type="search" name="permanent_id" value="{{ filters.permanent_id }}" placeholder="AICTE ID"></label>
+  <label>Case ID<input type="search" name="case_id" value="{{ filters.case_id }}" placeholder="Case or source reference"></label>
   <label>Bureau / Cell<select name="bureau"><option value="">All Bureaus and Cells</option>{% for item in bureaus %}<option value="{{ item.pk }}" {% if filters.bureau == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.code }} — {{ item.name }}</option>{% endfor %}</select></label>
+  <label>Region<select name="region"><option value="">All regions</option>{% for value in regions %}<option value="{{ value }}" {% if filters.region == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label>Category<select name="category"><option value="">All categories</option>{% for value in categories %}<option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label>Status<select name="status"><option value="">All statuses</option>{% for value,label in statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Received from<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+  <label>Received to<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
   <label>SLA<select name="sla"><option value="">Any deadline</option><option value="due_soon" {% if filters.sla == 'due_soon' %}selected{% endif %}>Due within 3 days</option><option value="overdue" {% if filters.sla == 'overdue' %}selected{% endif %}>Overdue</option></select></label>
   <button class="button" type="submit">Apply filters</button>
-  {% if filters.q or filters.status or filters.bureau or filters.sla %}<a class="text-link" href="{% url 'complaints:case_list' %}">Clear</a>{% endif %}
+  {% if filters.institution or filters.permanent_id or filters.case_id or filters.bureau or filters.region or filters.category or filters.status or filters.date_from or filters.date_to or filters.sla %}<a class="text-link" href="{% url 'complaints:case_list' %}">Clear</a>{% endif %}
 </form>
 <section class="panel">
   <div class="panel-heading"><h2>Case register</h2><span class="muted">{{ page.paginator.count }} result{{ page.paginator.count|pluralize }}</span></div>
@@ -46,9 +52,9 @@
   </div>
   {% if page.has_other_pages %}
   <div class="pagination">
-    {% if page.has_previous %}<a href="?q={{ filters.q|urlencode }}&status={{ filters.status|urlencode }}&bureau={{ filters.bureau|urlencode }}&sla={{ filters.sla|urlencode }}&page={{ page.previous_page_number }}">← Previous</a>{% else %}<span></span>{% endif %}
+    {% if page.has_previous %}<a href="?{{ filters_query }}&amp;page={{ page.previous_page_number }}">← Previous</a>{% else %}<span></span>{% endif %}
     <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-    {% if page.has_next %}<a href="?q={{ filters.q|urlencode }}&status={{ filters.status|urlencode }}&bureau={{ filters.bureau|urlencode }}&sla={{ filters.sla|urlencode }}&page={{ page.next_page_number }}">Next →</a>{% else %}<span></span>{% endif %}
+    {% if page.has_next %}<a href="?{{ filters_query }}&amp;page={{ page.next_page_number }}">Next →</a>{% else %}<span></span>{% endif %}
   </div>
   {% endif %}
 </section>

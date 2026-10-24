@@ -1,0 +1,2 @@
+ticket,grievance_ref,institute,permanent_code,workflow,subject,details,case_worker,follow_up,created,officer_note
+PGRC-MOCK-001,PGRC/2026/001,Synthetic Sahyadri Institute of Engineering,AICTE-0001,open,Infrastructure deficiency,Synthetic grievance about access to laboratory facilities.,Demo PGRC Officer,Compare the inspection schedule,2026-09-18T11:30:00+05:30,Mock source snapshot; synthetic data only.

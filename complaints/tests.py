@@ -8,11 +8,11 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from .models import (
-    AuditLog, BureauCell, CanonicalStatus, CaseLink, ComplaintCase,
+    AuditLog, BureauCell, CanonicalStatus, CaseAction, CaseLink, CaseTransfer, ComplaintCase,
     CoordinationMessage, CoordinationNotification, Institution,
-    InstitutionMatchStatus,
+    InstitutionMatchStatus, ConflictRule, SyntheticLinkLabel, SlaAlert,
 )
-from .services.overlap import sync_overlap_suggestions
+from .services.overlap import sync_conflict_suggestions, sync_overlap_suggestions
 
 
 class OverlapCenterTests(TestCase):
@@ -345,6 +345,146 @@ class LoginTemplateTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Sign in · Casework")
 
+
+class CaseTransferWorkflowTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.requester = User.objects.create_user("transfer-requester", password="test-pass-123")
+        self.receiver = User.objects.create_user("transfer-receiver", password="test-pass-123")
+        permission = Permission.objects.get(
+            content_type__app_label="complaints", codename="manage_case_workflow"
+        )
+        self.requester.user_permissions.add(permission)
+        self.receiver.user_permissions.add(permission)
+        self.rb = BureauCell.objects.create(code="RB", name="Regulation Bureau")
+        self.pgrc = BureauCell.objects.create(code="PGRC", name="Grievance Cell")
+        Group.objects.create(name="bureau:RB").user_set.add(self.requester)
+        Group.objects.create(name="bureau:PGRC").user_set.add(self.receiver)
+        self.case = ComplaintCase.objects.create(
+            source_system="TEST", source_case_id="TRANSFER-1", case_number="TRANSFER-1",
+            raw_institution_name="Transfer Test Institute", bureau=self.rb,
+            status=CanonicalStatus.PENDING,
+        )
+
+    def request_transfer(self):
+        client = Client()
+        client.force_login(self.requester)
+        response = client.post(reverse("complaints:record_case_action", args=[self.case.pk]), {
+            "status": CanonicalStatus.TRANSFERRED,
+            "transfer_to": self.pgrc.pk,
+            "remarks": "Forwarded for jurisdiction review.",
+        })
+        self.assertEqual(response.status_code, 302)
+        transfer = CaseTransfer.objects.get(case=self.case)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.bureau, self.rb)
+        self.assertEqual(self.case.status, CanonicalStatus.TRANSFERRED)
+        return transfer
+
+    def test_receiving_bureau_accepts_transfer_and_takes_ownership(self):
+        transfer = self.request_transfer()
+        client = Client()
+        client.force_login(self.receiver)
+        response = client.post(reverse("complaints:respond_to_transfer", args=[transfer.pk]),
+                               {"decision": "accept"})
+        self.assertEqual(response.status_code, 302)
+        transfer.refresh_from_db()
+        self.case.refresh_from_db()
+        self.assertEqual(transfer.state, CaseTransfer.State.ACCEPTED)
+        self.assertEqual(self.case.bureau, self.pgrc)
+        self.assertEqual(self.case.status, CanonicalStatus.UNDER_PROCESS)
+        self.assertTrue(AuditLog.objects.filter(action="case_transfer_accept", entity_id=str(transfer.pk)).exists())
+
+    def test_rejected_transfer_restores_previous_status_and_bureau(self):
+        transfer = self.request_transfer()
+        client = Client()
+        client.force_login(self.receiver)
+        response = client.post(reverse("complaints:respond_to_transfer", args=[transfer.pk]),
+                               {"decision": "reject"})
+        self.assertEqual(response.status_code, 302)
+        transfer.refresh_from_db()
+        self.case.refresh_from_db()
+        self.assertEqual(transfer.state, CaseTransfer.State.REJECTED)
+        self.assertEqual(self.case.bureau, self.rb)
+        self.assertEqual(self.case.status, CanonicalStatus.PENDING)
+
+    def test_non_receiving_bureau_cannot_accept_transfer(self):
+        transfer = self.request_transfer()
+        client = Client()
+        client.force_login(self.requester)
+        response = client.post(reverse("complaints:respond_to_transfer", args=[transfer.pk]),
+                               {"decision": "accept"})
+        self.assertEqual(response.status_code, 403)
+        transfer.refresh_from_db()
+        self.assertEqual(transfer.state, CaseTransfer.State.PENDING)
+
+
+class ReportExportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("report-user", password="test-pass-123")
+        permission = Permission.objects.get(
+            content_type__app_label="complaints", codename="view_complaintcase"
+        )
+        self.user.user_permissions.add(permission)
+        bureau = BureauCell.objects.create(code="RB", name="Regulation Bureau")
+        ComplaintCase.objects.create(
+            source_system="TEST", source_case_id="REPORT-1", case_number="REPORT-1",
+            raw_institution_name="Report Test Institute", bureau=bureau,
+            status=CanonicalStatus.PENDING,
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_register_exports_csv_excel_and_pdf(self):
+        exports = [
+            ("export_cases_csv", "text/csv"),
+            ("export_cases_xlsx", "spreadsheetml.sheet"),
+            ("export_cases_pdf", "application/pdf"),
+        ]
+        for name, content_type in exports:
+            with self.subTest(name=name):
+                response = self.client.get(reverse(f"complaints:{name}"))
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(content_type, response["Content-Type"])
+                self.assertTrue(response.content)
+
+
+class SlaAlertRefreshTests(TestCase):
+    def test_refresh_is_idempotent_and_tracks_pending_transfer(self):
+        from complaints.services.sla import refresh_sla_alerts
+
+        now = timezone.now()
+        bureau = BureauCell.objects.create(code="RB", name="Regulation Bureau")
+        receiving = BureauCell.objects.create(code="PGRC", name="Grievance Cell")
+        case = ComplaintCase.objects.create(
+            source_system="TEST", source_case_id="SLA-1", case_number="SLA-1",
+            raw_institution_name="SLA Test Institute", bureau=bureau,
+            status=CanonicalStatus.TRANSFERRED,
+            received_at=now - timedelta(days=20),
+            last_action_at=now - timedelta(days=20),
+            sla_due_at=now + timedelta(days=1),
+        )
+        CaseTransfer.objects.create(
+            case=case, from_bureau=bureau, to_bureau=receiving,
+            previous_status=CanonicalStatus.PENDING,
+            requested_at=now - timedelta(days=4),
+        )
+
+        first = refresh_sla_alerts(case_ids=[case.pk], now=now)
+        self.assertEqual(first[SlaAlert.AlertType.DUE_SOON], 1)
+        self.assertEqual(first[SlaAlert.AlertType.STALE], 1)
+        self.assertEqual(first[SlaAlert.AlertType.TRANSFER_AWAITING], 1)
+        self.assertEqual(SlaAlert.objects.filter(case=case, resolved_at__isnull=True).count(), 3)
+
+        second = refresh_sla_alerts(case_ids=[case.pk], now=now)
+        self.assertEqual(second[SlaAlert.AlertType.DUE_SOON], 1)
+        self.assertEqual(SlaAlert.objects.filter(case=case, resolved_at__isnull=True).count(), 3)
+
+        case.status = CanonicalStatus.DISPOSED
+        case.save(update_fields=["status", "updated_at"])
+        refresh_sla_alerts(case_ids=[case.pk], now=now)
+        self.assertEqual(SlaAlert.objects.filter(case=case, resolved_at__isnull=True).count(), 0)
+
 from datetime import timedelta
 
 from django.utils import timezone
@@ -580,6 +720,21 @@ class Phase3ViewsTests(TestCase):
         self.assertContains(response, "Fuzzy Match Review")
         self.assertContains(response, "IIS-CASE-01")
 
+    def test_case_register_supports_plan_filters(self):
+        response = self.client.get(reverse("complaints:case_list"), {
+            "institution": "Indian Institute",
+            "permanent_id": "1-9999",
+            "case_id": "IIS-CASE-01",
+            "bureau": str(self.bureau_rb.pk),
+            "region": "West",
+            "category": "Facilities",
+            "status": CanonicalStatus.UNDER_PROCESS,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "IIS-CASE-01")
+        self.assertNotContains(response, "IIS-CASE-02")
+
+
     def test_case_detail_shows_overlap_banner_and_one_linked_cases_section(self):
         CaseLink.objects.create(
             case_a=self.case1, case_b=self.case2,
@@ -687,3 +842,39 @@ class AIHelpdeskTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+
+class ConflictDetectionTests(TestCase):
+    def test_configured_action_pair_creates_explainable_conflict_suggestion(self):
+        rb = BureauCell.objects.create(code="RB", name="Regulation Bureau")
+        pgrc = BureauCell.objects.create(code="PGRC", name="Public Grievance Cell")
+        institution = Institution.objects.create(name="Synthetic Conflict Institute")
+        case_a = ComplaintCase.objects.create(
+            source_system="TEST", source_case_id="CONFLICT-A", institution=institution,
+            raw_institution_name=institution.name, bureau=rb,
+            status=CanonicalStatus.UNDER_PROCESS,
+        )
+        case_b = ComplaintCase.objects.create(
+            source_system="TEST", source_case_id="CONFLICT-B", institution=institution,
+            raw_institution_name=institution.name, bureau=pgrc,
+            status=CanonicalStatus.UNDER_PROCESS,
+        )
+        rule = ConflictRule.objects.create(
+            name="Close versus notice", action_type_a="closed_no_action",
+            action_type_b="show_cause_notice", explanation="Actions conflict.",
+        )
+        CaseAction.objects.create(case=case_a, action_type=rule.action_type_a,
+                                  acted_at=timezone.now())
+        CaseAction.objects.create(case=case_b, action_type=rule.action_type_b,
+                                  acted_at=timezone.now())
+
+        created = sync_conflict_suggestions()
+
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0].link_type, CaseLink.LinkType.CONFLICT)
+        self.assertEqual(created[0].explanation["rule"], rule.name)
+        label = SyntheticLinkLabel.objects.create(
+            case_a=case_b, case_b=case_a,
+            expected_type=SyntheticLinkLabel.ExpectedType.CONFLICT,
+        )
+        self.assertEqual((label.case_a_id, label.case_b_id), (case_a.pk, case_b.pk))

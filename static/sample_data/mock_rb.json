@@ -1,0 +1,15 @@
+[
+  {
+    "reference": "RB-MOCK-001",
+    "display_no": "RB/2026/001",
+    "college": "Synthetic Sahyadri Institute of Engineering",
+    "aicte_id": "AICTE-0001",
+    "state": "in process",
+    "issue": "Infrastructure deficiency",
+    "summary": "Synthetic demonstration record about laboratory access.",
+    "owner": "Demo RB Officer",
+    "next_step": "Review the submitted inspection note",
+    "received": "2026-09-15T10:00:00+05:30",
+    "latest_note": "Mock source snapshot; synthetic data only."
+  }
+]

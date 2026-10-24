@@ -5,13 +5,16 @@ from .models import (
     BureauCell,
     CaseAction,
     CaseLink,
+    CaseTransfer,
     ComplaintCase,
     CoordinationMessage,
     CoordinationNotification,
+    ConflictRule,
     Institution,
     InstitutionAlias,
     SlaAlert,
     SyntheticMatchLabel,
+    SyntheticLinkLabel,
     StatusMap,
 )
 
@@ -105,6 +108,37 @@ class SyntheticMatchLabelAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(SyntheticLinkLabel)
+class SyntheticLinkLabelAdmin(admin.ModelAdmin):
+    list_display = ("case_a", "case_b", "expected_type", "dataset")
+    list_filter = ("expected_type", "dataset")
+    readonly_fields = ("case_a", "case_b", "expected_type", "dataset")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ConflictRule)
+class ConflictRuleAdmin(admin.ModelAdmin):
+    list_display = ("name", "action_type_a", "action_type_b", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name", "action_type_a", "action_type_b")
+
+
+@admin.register(CaseTransfer)
+class CaseTransferAdmin(admin.ModelAdmin):
+    list_display = ("case", "from_bureau", "to_bureau", "state", "requested_at", "responded_at")
+    list_filter = ("state", "from_bureau", "to_bureau")
+    search_fields = ("case__case_number", "case__source_case_id", "note")
+    readonly_fields = ("requested_at", "responded_at")
 
 
 @admin.register(CaseLink)
