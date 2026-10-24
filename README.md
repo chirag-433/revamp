@@ -7,8 +7,8 @@ The first milestone is a synthetic-data demo that resolves institutions, surface
 ## Project status
 
 - Product scope and delivery sequence: [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md)
-- Implemented slices: foundation, Phase 2 case import/tracking, Phase 3 institution matching and overlap review, and Phase 4A Overlap Center
-- Phase 3 matching and review routes remain available; Phase 4A coordination actions require Django login and permissions
+- Implemented slices: foundation, Phase 2 import/tracking, Phase 3 matching/overlap review, Phase 4A–4D coordination, workflow, SLA alerts and reporting, plus Phase 5 demo hardening
+- Phase 4A–4D officer actions and reports require Django login and the relevant permissions
 - Open validation: the exact official problem statement is not yet in the project materials
 
 ## Local setup
@@ -22,13 +22,14 @@ python -m pip install -r requirements.txt
 python manage.py makemigrations complaints
 python manage.py migrate
 python manage.py seed_demo
+python manage.py seed_match_benchmark
 python manage.py createsuperuser
 python manage.py runserver
 ```
 
 The app uses SQLite by default for a quick local start. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. For the floating Casework Guide, copy `.env.example` to `.env` and set `GEMINI_API_KEY`; Django loads `.env` at startup and sends Gemini requests server-side, so the key is never exposed to the browser. Do not commit credentials or real complaint data. If a key has been shared publicly, revoke it and create a replacement.
 
-The dashboard is available at `/`, CSV import at `/import/`, Match Review at `/matches/`, Phase 3 overlap list at `/overlaps/`, the Phase 4A Overlap Center at `/overlap/`, sign-in at `/accounts/login/`, and Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response. Phase 4A decisions, messages, manual links, and institution-match reviews require an authenticated account and CSRF-protected POST requests.
+The dashboard is available at `/`, CSV import at `/import/`, Match Review at `/matches/`, the Overlap Center at `/overlap/`, reports at `/reports/`, sign-in at `/accounts/login/`, and Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response. Workflow updates, coordination decisions/messages, match reviews, and reports require an authenticated account and the relevant permissions. State-changing forms use CSRF-protected POST requests.
 
 ### Phase 4A local access
 
@@ -39,7 +40,7 @@ The dashboard is available at `/`, CSV import at `/import/`, Match Review at `/m
 
 The existing case register, dashboard, institution pages, and CSV import remain part of the prototype. The pre-existing CSV import is still intended only for a local synthetic-data demo and is not production-hardened.
 
-The `seed_demo` command creates or refreshes synthetic institutions, Bureaus/Cells, status mappings, cases, and initial history. It is safe to run more than once; it does not delete existing data. The `run_matching` command resolves unmatched cases, queues uncertain institution matches for review, and scans confirmed institution assignments for cross-Bureau overlaps. The sample import file is [`static/sample_data/demo_cases.csv`](static/sample_data/demo_cases.csv).
+The `seed_demo` command creates or refreshes synthetic institutions, Bureaus/Cells, status mappings, cases, and initial history. It is safe to run more than once; it does not delete existing data. `seed_match_benchmark` adds isolated labelled synthetic cases for reproducible matching precision/recall. `refresh_sla_alerts` reconciles due-soon and overdue in-app alerts; the dashboard refreshes them when opened. `reset_demo --confirm` removes only synthetic `DEMO` and `BENCHMARK` cases. The `run_matching` command resolves unmatched cases, queues uncertain institution matches for review, and scans confirmed institution assignments for cross-Bureau overlaps. The sample import file is [`static/sample_data/demo_cases.csv`](static/sample_data/demo_cases.csv).
 
 ## CSV import contract
 
@@ -49,7 +50,7 @@ Optional columns: `case_number`, `institution_permanent_id`, `category`, `descri
 
 Dates must be ISO 8601. A source status must have a matching `StatusMap` entry and the Bureau/Cell code must exist and be active. Rows with validation errors are skipped and reported; valid rows are saved. Re-imports update the same `(source_system, source_case_id)` record, and the database enforces that key as unique. A provided Permanent ID links only when it exactly matches an active institution record; unknown or missing IDs remain unresolved for the later matching phase.
 
-This first import screen is intended for a local synthetic-data prototype. It is not yet protected by production authentication or authorization and must not be exposed publicly.
+CSV imports require an authenticated account with the Django `add_complaintcase` permission. The importer remains intended for a local synthetic-data prototype and is not a production source integration.
 
 ## Delivery status
 
@@ -57,12 +58,16 @@ This first import screen is intended for a local synthetic-data prototype. It is
 - **Phase 1 — foundation:** Django app, initial schema migration, local SQLite/PostgreSQL configuration, repeatable synthetic seed command, and local startup steps are in place.
 - **Phase 2 — import and tracking:** CSV validation/import, canonical status mapping, duplicate-safe updates, case list/detail, and institution profiles are in place.
 - **Phase 3 — matching and review:** 3-tier fuzzy institution resolution, a manual match review queue, cross-Bureau overlap detection, and the Phase 3 overlap list remain available.
-- **Phase 4A — Overlap Center:** cross-Bureau suggestions, comparison, audited decisions, manual related links, coordination threads and in-app notifications, and borderline institution-match review are implemented.
-- **Not started:** Phase 4B workflow/action changes, 4C SLA and alert engine, and 4D reports. The Phase 4A overlap comparison uses a lightweight local text similarity signal; it does not add a sentence-embedding pipeline.
+- **Phase 4A — Coordination:** cross-Bureau suggestions, comparison, audited decisions, manual related links, coordination threads and in-app notifications, and borderline institution-match review.
+- **Phase 4B — Workflow:** permission-gated case status, next-action, deadline, and note updates appear in the timestamped action history and append-only audit log.
+- **Phase 4C — SLA alerts:** three-day due-soon and overdue alerts are refreshed in-app and surfaced on the overview; a management command supports scheduled refreshes.
+- **Phase 4D — Reports:** workload counts, register CSV export, and precision/recall measured against separately stored synthetic match labels.
+- **Phase 5 — Demo hardening:** mobile-friendly workflow form, keyboard focus and reduced-motion support, explicit synthetic-only reset command, setup notes, and a short walkthrough in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+- Phase 4A overlap comparison uses a lightweight local text-similarity signal; it does not add a sentence-embedding pipeline.
 
 ## Scope guardrails
 
-- Demo data must be synthetic. Labelled ground truth and matching metrics are planned for Phase 4.
+- Demo data must be synthetic. Matching metrics are limited to the labelled synthetic benchmark and must not be presented as production accuracy.
 - An overlap is a coordination suggestion, never an automatic case merge.
 - Exact Permanent ID matches are deterministic; uncertain name matches require review.
 - Do not publish measured accuracy claims until they are calculated from the labelled dataset.

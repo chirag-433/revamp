@@ -1,25 +1,31 @@
+import csv
 import json
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .models import (
-    AuditLog, BureauCell, CanonicalStatus, CaseLink, ComplaintCase,
+    AuditLog, BureauCell, CanonicalStatus, CaseAction, CaseLink, ComplaintCase,
     CoordinationMessage, CoordinationNotification, Institution,
-    InstitutionMatchStatus,
+    InstitutionMatchStatus, SlaAlert, SyntheticMatchLabel,
 )
+from .forms import CaseWorkflowForm
 from .services.ai_helpdesk import AIHelpdeskError, ask_gemini
 from .services.csv_import import CSVImportError, import_cases_csv
-from .services.matching import resolve_institution
+from .services.matching import (
+    AUTO_THRESHOLD, REVIEW_THRESHOLD, find_candidates, resolve_institution,
+)
 from .services.overlap import (
     detect_overlaps_for_case, suggested_overlap_links, sync_overlap_suggestions,
 )
+from .services.sla import refresh_sla_alerts
 
 
 def _bureau_group_codes(user):
@@ -56,7 +62,8 @@ def _scope_cases(user, queryset):
 
 
 def dashboard(request):
-    cases = ComplaintCase.objects.select_related("institution", "bureau")
+    refresh_sla_alerts()
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
     total = cases.count()
     open_cases = cases.exclude(status=CanonicalStatus.DISPOSED).count()
     escalated = cases.filter(status=CanonicalStatus.ESCALATED).count()
@@ -66,8 +73,12 @@ def dashboard(request):
         | Q(institution__isnull=True)
         | (Q(sla_due_at__lt=timezone.now()) & ~Q(status=CanonicalStatus.DISPOSED))
     ).order_by("sla_due_at", "-received_at")[:6]
+    bureau_codes = _bureau_group_codes(request.user)
+    bureau_rows = BureauCell.objects.filter(is_active=True)
+    if bureau_codes and not _is_overlap_manager(request.user):
+        bureau_rows = bureau_rows.filter(code__in=bureau_codes)
     bureau_load = list(
-        BureauCell.objects.filter(is_active=True).annotate(case_count=Count("cases"))
+        bureau_rows.annotate(case_count=Count("cases", filter=Q(cases__in=cases)))
         .filter(case_count__gt=0).order_by("-case_count", "name")
     )
     max_load = max((bureau.case_count for bureau in bureau_load), default=1)
@@ -83,9 +94,21 @@ def dashboard(request):
             .select_related("case_a__institution", "case_a__bureau",
                             "case_b__institution", "case_b__bureau")[:4]
         )
+    now = timezone.now()
+    due_soon_cases = cases.filter(
+        sla_due_at__gt=now, sla_due_at__lte=now + timedelta(days=3)
+    ).exclude(status=CanonicalStatus.DISPOSED).count()
+    overdue_cases = cases.filter(sla_due_at__lt=now).exclude(status=CanonicalStatus.DISPOSED).count()
+    active_sla_alerts = SlaAlert.objects.filter(
+        resolved_at__isnull=True, case__in=cases
+    ).select_related("case", "case__bureau", "case__institution").order_by(
+        "case__sla_due_at", "opened_at"
+    )[:8]
     return render(request, "complaints/dashboard.html", {
         "total_cases": total, "open_cases": open_cases,
         "escalated_cases": escalated, "unmatched_cases": unmatched,
+        "due_soon_cases": due_soon_cases, "overdue_cases": overdue_cases,
+        "sla_alerts": active_sla_alerts,
         "attention_cases": needs_attention,
         "recent_cases": cases.order_by("-received_at", "-id")[:6],
         "bureau_load": bureau_load,
@@ -100,10 +123,11 @@ def dashboard(request):
 
 
 def case_list(request):
-    cases = ComplaintCase.objects.select_related("institution", "bureau")
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
     bureau = request.GET.get("bureau", "").strip()
+    sla = request.GET.get("sla", "").strip()
     if query:
         cases = cases.filter(Q(case_number__icontains=query)
                              | Q(source_case_id__icontains=query)
@@ -113,24 +137,34 @@ def case_list(request):
         cases = cases.filter(status=status)
     if bureau.isdigit():
         cases = cases.filter(bureau_id=int(bureau))
+    now = timezone.now()
+    if sla == "overdue":
+        cases = cases.filter(sla_due_at__lt=now).exclude(status=CanonicalStatus.DISPOSED)
+    elif sla == "due_soon":
+        cases = cases.filter(sla_due_at__gt=now, sla_due_at__lte=now + timedelta(days=3)).exclude(
+            status=CanonicalStatus.DISPOSED
+        )
     paginator = Paginator(cases, 25)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "complaints/case_list.html", {
-        "page": page, "bureaus": BureauCell.objects.filter(is_active=True),
+        "page": page, "bureaus": BureauCell.objects.filter(is_active=True,
+            **({"code__in": _bureau_group_codes(request.user)} if _bureau_group_codes(request.user)
+               and not _is_overlap_manager(request.user) else {})),
         "statuses": CanonicalStatus.choices,
-        "filters": {"q": query, "status": status, "bureau": bureau},
-        "total_cases": ComplaintCase.objects.count(),
-        "unmapped_institutions": ComplaintCase.objects.filter(institution__isnull=True).count(),
-        "pending_overlaps": CaseLink.objects.filter(link_type=CaseLink.LinkType.OVERLAP, review_state=CaseLink.ReviewState.SUGGESTED).count(),
-        "review_queue_count": ComplaintCase.objects.filter(match_status=InstitutionMatchStatus.FUZZY_SUGGESTED).count(),
+        "filters": {"q": query, "status": status, "bureau": bureau, "sla": sla},
+        "total_cases": _scope_cases(request.user, ComplaintCase.objects.all()).count(),
+        "unmapped_institutions": _scope_cases(request.user, ComplaintCase.objects.filter(institution__isnull=True)).count(),
+        "pending_overlaps": _scope_overlap_links(request.user, CaseLink.objects.filter(
+            link_type=CaseLink.LinkType.OVERLAP, review_state=CaseLink.ReviewState.SUGGESTED)).count(),
+        "review_queue_count": _scope_cases(request.user, ComplaintCase.objects.filter(
+            match_status=InstitutionMatchStatus.FUZZY_SUGGESTED)).count(),
     })
 
 
 def case_detail(request, pk):
-    case = get_object_or_404(
-        ComplaintCase.objects.select_related("institution", "bureau").prefetch_related("actions"),
-        pk=pk,
-    )
+    refresh_sla_alerts()
+    case = get_object_or_404(_scope_cases(request.user,
+        ComplaintCase.objects.select_related("institution", "bureau").prefetch_related("actions")), pk=pk)
     related_links = []
     if request.user.is_authenticated and request.user.has_perm("complaints.view_caselink"):
         related_links = _scope_overlap_links(request.user, CaseLink.objects.filter(
@@ -138,11 +172,117 @@ def case_detail(request, pk):
         ).exclude(link_type=CaseLink.LinkType.OVERLAP)).select_related(
             "case_a", "case_b", "case_a__bureau", "case_b__bureau"
         )
-    overlap_links = CaseLink.objects.filter(link_case_query_for_case(case),
-        link_type=CaseLink.LinkType.OVERLAP).select_related(
+    overlap_links = _scope_overlap_links(request.user, CaseLink.objects.filter(
+        link_case_query_for_case(case), link_type=CaseLink.LinkType.OVERLAP)).select_related(
             "case_a__bureau", "case_b__bureau", "case_a__institution", "case_b__institution")
-    return render(request, "complaints/case_detail.html",
-                  {"case": case, "related_links": related_links, "overlap_links": overlap_links})
+    form = CaseWorkflowForm(initial={
+        "status": case.status, "next_action": case.next_action,
+        "sla_due_at": timezone.localtime(case.sla_due_at).strftime("%Y-%m-%dT%H:%M") if case.sla_due_at else "",
+    })
+    can_update = request.user.is_authenticated and request.user.has_perm("complaints.manage_case_workflow")
+    return render(request, "complaints/case_detail.html", {
+        "case": case, "related_links": related_links, "overlap_links": overlap_links,
+        "workflow_form": form, "can_update_workflow": can_update,
+    })
+
+
+@login_required
+@permission_required("complaints.manage_case_workflow", raise_exception=True)
+def record_case_action(request, pk):
+    if request.method != "POST":
+        return redirect("complaints:case_detail", pk=pk)
+    case = get_object_or_404(_scope_cases(request.user,
+        ComplaintCase.objects.select_related("bureau")), pk=pk)
+    form = CaseWorkflowForm(request.POST)
+    if not form.is_valid():
+        details = " ".join(
+            f"{label}: {', '.join(errors)}"
+            for label, errors in form.errors.items()
+        )
+        messages.error(request, f"Please correct the workflow update. {details}")
+        return redirect("complaints:case_detail", pk=case.pk)
+    values = form.cleaned_data
+    with transaction.atomic():
+        case = ComplaintCase.objects.select_for_update().get(pk=case.pk)
+        previous_status = case.status
+        case.status = values["status"]
+        case.next_action = values["next_action"]
+        case.last_action_at = timezone.now()
+        case.sla_due_at = values["sla_due_at"]
+        case.save(update_fields=["status", "next_action", "last_action_at", "sla_due_at", "updated_at"])
+        CaseAction.objects.create(
+            case=case, action_type=f"Updated to {case.get_status_display()}", from_bureau=case.bureau,
+            actor=request.user, actor_label=request.user.get_full_name() or request.user.get_username(),
+            acted_at=case.last_action_at, remarks=values["remarks"],
+        )
+        AuditLog.objects.create(
+            actor=request.user, action="case_workflow_updated", entity_type="ComplaintCase",
+            entity_id=str(case.pk), details={"previous_status": previous_status,
+                                             "status": case.status,
+                                             "sla_due_at": case.sla_due_at.isoformat() if case.sla_due_at else None},
+        )
+    refresh_sla_alerts(case_ids=[case.pk])
+    messages.success(request, "Case update recorded in the audit history.")
+    return redirect("complaints:case_detail", pk=case.pk)
+
+
+@login_required
+@permission_required("complaints.view_complaintcase", raise_exception=True)
+def reports(request):
+    refresh_sla_alerts()
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("bureau", "institution"))
+    now = timezone.now()
+    labels = SyntheticMatchLabel.objects.filter(
+        dataset="demo-match-v1", case__in=cases
+    ).select_related("case", "expected_institution")
+    evaluated = 0
+    expected_matches = 0
+    predicted_matches = 0
+    true_positives = 0
+    for label in labels:
+        expected = label.expected_institution
+        if expected:
+            expected_matches += 1
+        candidate = find_candidates(label.case.raw_institution_name, top_n=1)
+        predicted = candidate[0].institution if candidate and candidate[0].score >= REVIEW_THRESHOLD else None
+        if predicted:
+            predicted_matches += 1
+        if predicted and expected and predicted.pk == expected.pk:
+            true_positives += 1
+        evaluated += 1
+    return render(request, "complaints/reports.html", {
+        "total_cases": cases.count(),
+        "open_cases": cases.exclude(status=CanonicalStatus.DISPOSED).count(),
+        "overdue_cases": cases.filter(sla_due_at__lt=now).exclude(status=CanonicalStatus.DISPOSED).count(),
+        "due_soon_cases": cases.filter(sla_due_at__gt=now, sla_due_at__lte=now + timedelta(days=3)).exclude(status=CanonicalStatus.DISPOSED).count(),
+        "evaluated": evaluated,
+        "expected_matches": expected_matches,
+        "predicted_matches": predicted_matches,
+        "true_positives": true_positives,
+        "precision": round(true_positives / predicted_matches * 100, 1) if predicted_matches else None,
+        "recall": round(true_positives / expected_matches * 100, 1) if expected_matches else None,
+        "auto_threshold": AUTO_THRESHOLD,
+        "review_threshold": REVIEW_THRESHOLD,
+    })
+
+
+@login_required
+@permission_required("complaints.view_complaintcase", raise_exception=True)
+def export_cases_csv(request):
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="institution-cases.csv"'
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(["case_number", "source_system", "source_case_id", "institution",
+                     "bureau", "category", "status", "received_at", "sla_due_at"])
+    for case in cases.iterator(chunk_size=500):
+        writer.writerow([case.case_number, case.source_system, case.source_case_id,
+                         case.institution.name if case.institution else case.raw_institution_name,
+                         case.bureau.code, case.category, case.get_status_display(),
+                         case.received_at.isoformat() if case.received_at else "",
+                         case.sla_due_at.isoformat() if case.sla_due_at else ""])
+    return response
 
 
 def link_case_query_for_case(case):
@@ -151,7 +291,7 @@ def link_case_query_for_case(case):
 
 def institution_detail(request, pk):
     institution = get_object_or_404(Institution, pk=pk)
-    cases = institution.cases.select_related("bureau").order_by("-received_at", "-id")
+    cases = _scope_cases(request.user, institution.cases.select_related("bureau")).order_by("-received_at", "-id")
     can_review = request.user.is_authenticated and request.user.has_perm("complaints.view_caselink")
     links = []
     if can_review:
@@ -172,6 +312,8 @@ def institution_detail(request, pk):
     })
 
 
+@login_required
+@permission_required("complaints.add_complaintcase", raise_exception=True)
 def import_cases(request):
     if request.method == "POST":
         uploaded_file = request.FILES.get("csv_file")

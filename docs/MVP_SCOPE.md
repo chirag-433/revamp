@@ -75,7 +75,7 @@ The project folder is currently empty, so there is no existing stack to preserve
 - **Frontend:** choose Django templates for the fastest end-to-end slice, or React if the team already has a working React setup. Do not build both UI approaches.
 - **Jobs:** run matching during import for the small demo dataset. Add a scheduler/worker only when the workflow needs it.
 
-This is a recommendation, not a locked decision; the next implementation step should confirm the team's preferred frontend and local database setup.
+The prototype currently uses Django templates and SQLite by default, with PostgreSQL configurable. The exact official problem statement is still required to validate final workflow fields, SLA policy, and requirement coverage.
 
 ## 7. Delivery sequence and exit criteria
 
@@ -102,18 +102,20 @@ This is a recommendation, not a locked decision; the next implementation step sh
 
 ### Part 4 — Dashboard and proof
 
-- Add essential KPIs, filters, SLA ageing if required by the exact PS, and measured precision/recall on labelled synthetic data.
-- **Exit:** metrics can be reproduced from the demo dataset and the main demo flow remains reliable.
+- **4A Coordination:** cross-Bureau comparison, human decisions, notes, and in-app notifications.
+- **4B Workflow:** permission-gated status, next-step, deadline, and action-history updates with audit events.
+- **4C SLA and alerts:** due-soon and overdue alert queue, overview metrics, and a refresh command.
+- **4D Reports:** workload report, CSV register export, and precision/recall against separate synthetic match labels.
+- **Exit:** the benchmark can be recreated with `seed_match_benchmark`; metrics are calculated from labels and the main case/coordination flow is available.
 
 ### Part 5 — Presentation hardening
 
-- Improve empty/loading/error states, accessibility, local fallback, documentation, and the short demo script.
+- Provide a synthetic-only reset flow, responsive workflow controls, visible focus states, reduced-motion support, setup notes, and a short demo walkthrough.
 - **Exit:** the prototype can be reset and demonstrated end-to-end without relying on live source-system access.
 
 ## 8. Decisions still needed
 
 1. The full official problem statement is not present in the supplied pasted text; it has a `PASTED` placeholder. Validate against the official PS before finalizing fields and requirement coverage.
-2. Confirm whether the team prefers Django templates or an existing/known React frontend.
-3. Confirm whether PostgreSQL is available for local development; otherwise choose a documented prototype fallback.
-4. Treat SIH dates, rules, and winner statistics in the research PDFs as research notes until checked against current official sources.
+2. The application uses Django templates and supports SQLite for local development plus PostgreSQL configuration.
+3. Treat SIH dates, rules, and winner statistics in the research PDFs as research notes until checked against current official sources.
 

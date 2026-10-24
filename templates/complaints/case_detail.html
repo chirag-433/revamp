@@ -51,5 +51,24 @@
   {% for action in case.actions.all %}<article class="timeline-item"><time>{{ action.acted_at|date:"j M Y, H:i" }}</time><div><strong>{{ action.action_type|capfirst }}</strong><p>{{ action.remarks|default:"No remarks supplied." }}</p><small>{{ action.actor_label|default:"Source record" }}</small></div></article>
   {% empty %}<p class="empty">No action history was supplied for this case.</p>{% endfor %}
 </div></section>
+{% if can_update_workflow %}
+<section class="panel workflow-update-panel" aria-labelledby="workflow-update-title">
+  <div class="panel-heading"><div><p class="eyebrow">PHASE 4B · CASEWORK</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
+  <p class="muted">This creates a time-stamped history entry and records the status and next step.</p>
+  <form method="post" action="{% url 'complaints:record_case_action' case.pk %}" class="workflow-form">
+    {% csrf_token %}
+    {{ workflow_form.non_field_errors }}
+    <div class="form-grid">
+      <label for="id_status">Status {{ workflow_form.status }}</label>
+      <label for="id_sla_due_at">{{ workflow_form.sla_due_at.label }} {{ workflow_form.sla_due_at }}</label>
+      <label class="form-wide" for="id_next_action">Next action {{ workflow_form.next_action }}</label>
+      <label class="form-wide" for="id_remarks">Action notes {{ workflow_form.remarks }}</label>
+    </div>
+    <button class="button primary" type="submit">Save case update</button>
+  </form>
+</section>
+{% elif not user.is_authenticated %}
+<section class="panel"><p class="muted">Sign in with an authorized officer account to record workflow updates.</p></section>
+{% endif %}
 {% endblock %}
 
