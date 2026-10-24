@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ case }} · Institution Case Tracker{% endblock %}
+{% block title %}{{ case }} · SAKSHAM{% endblock %}
 {% block content %}
 <p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / {{ case }}</p>
 <div class="page-heading"><div><p class="eyebrow">{{ case.source_system }} · {{ case.source_case_id }}</p><h1>{{ case.case_number|default:case.source_case_id }}</h1><p class="muted">{{ case.bureau.code }} — {{ case.bureau.name }}</p></div><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></div>
@@ -70,7 +70,7 @@
 {% endif %}
 {% if can_update_workflow %}
 <section class="panel workflow-update-panel" aria-labelledby="workflow-update-title">
-  <div class="panel-heading"><div><p class="eyebrow">PHASE 4B · CASEWORK</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
+  <div class="panel-heading"><div><p class="eyebrow">PHASE 4B · SAKSHAM</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
   <p class="muted">This creates a time-stamped history entry and records the status and next step.</p>
   <form method="post" action="{% url 'complaints:record_case_action' case.pk %}" class="workflow-form">
     {% csrf_token %}

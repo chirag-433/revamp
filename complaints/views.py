@@ -970,3 +970,81 @@ def review_institution_match(request, pk):
         created = sync_overlap_suggestions(institution_id=institution.pk)
     messages.success(request, f"Institution match confirmed. {len(created)} new overlap suggestion(s) checked.")
     return redirect("complaints:overlap_center")
+
+
+def register(request):
+    """Register a new officer account with Bureau/Cell or Coordination role."""
+    from django.contrib.auth import get_user_model, login as auth_login
+    from django.contrib.auth.models import Group, Permission
+
+    if request.user.is_authenticated:
+        return redirect("complaints:dashboard")
+
+    bureaus = BureauCell.objects.filter(is_active=True).order_by("name")
+
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        bureau_code = request.POST.get("bureau", "").strip()
+        password = request.POST.get("password", "")
+        password_confirm = request.POST.get("password_confirm", "")
+
+        errors = []
+        if not username:
+            errors.append("Username is required.")
+        elif get_user_model().objects.filter(username=username).exists():
+            errors.append("This username is already taken. Please choose another.")
+
+        if len(password) < 6:
+            errors.append("Password must be at least 6 characters.")
+        elif password != password_confirm:
+            errors.append("Passwords do not match.")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return render(request, "registration/register.html", {
+                "bureaus": bureaus,
+                "form_data": request.POST,
+                "next": request.POST.get("next", ""),
+            })
+
+        with transaction.atomic():
+            user = get_user_model().objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+
+            # Assign bureau group & standard casework permissions
+            group_name = "overlap-managers" if bureau_code == "COORDINATOR" else f"bureau:{bureau_code}"
+            group, _ = Group.objects.get_or_create(name=group_name)
+
+            casework_perms = Permission.objects.filter(
+                codename__in=[
+                    "view_complaintcase", "change_complaintcase", "add_complaintcase",
+                    "view_caselink", "review_case_links", "add_caselink",
+                    "add_coordinationmessage", "view_coordinationnotification",
+                ]
+            )
+            group.permissions.add(*casework_perms)
+            user.groups.add(group)
+
+            if bureau_code == "COORDINATOR":
+                user.is_staff = True
+                user.save(update_fields=["is_staff"])
+
+        auth_login(request, user)
+        messages.success(request, f"Welcome to SAKSHAM, {user.first_name or user.username}! Your officer account is now active.")
+        next_url = request.POST.get("next") or request.GET.get("next") or "complaints:dashboard"
+        return redirect(next_url)
+
+    return render(request, "registration/register.html", {
+        "bureaus": bureaus,
+        "next": request.GET.get("next", ""),
+    })
+

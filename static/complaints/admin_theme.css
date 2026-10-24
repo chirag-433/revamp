@@ -1,0 +1,354 @@
+/* AICTE Casework Admin Theme */
+:root {
+  --admin-primary: #1e4a38;
+  --admin-primary-dark: #15382a;
+  --admin-accent: #d4af37;
+  --admin-accent-hover: #b89528;
+  --admin-bg: #f8faf8;
+  --admin-surface: #ffffff;
+  --admin-border: #dbe4dc;
+  --admin-ink: #1a2922;
+  --admin-muted: #64746b;
+}
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  background-color: var(--admin-bg) !important;
+  color: var(--admin-ink) !important;
+}
+
+/* Admin Header */
+#header {
+  background: linear-gradient(135deg, #183e2e 0%, #235841 100%) !important;
+  color: #ffffff !important;
+  padding: 16px 32px !important;
+  border-bottom: 3px solid #d4af37 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.admin-brand-logo {
+  width: 68px !important;
+  height: 68px !important;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  padding: 3px;
+  border: 2.5px solid #d4af37;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.admin-brand-text h1 {
+  margin: 0 !important;
+  font-size: 21px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1.2 !important;
+}
+
+.admin-brand-text h1 a {
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
+.admin-brand-sub {
+  display: block;
+  font-size: 11px;
+  color: #c9ded3;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+#user-tools {
+  font-size: 12px !important;
+  color: #d1e5db !important;
+}
+
+#user-tools a {
+  color: #f7e3af !important;
+  border-bottom: 1px dotted rgba(247, 227, 175, 0.5) !important;
+  text-decoration: none !important;
+  padding: 2px 4px !important;
+}
+
+#user-tools a:hover {
+  color: #ffffff !important;
+  border-bottom-style: solid !important;
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+  background: var(--admin-surface) !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  padding: 12px 28px !important;
+}
+
+div.breadcrumbs a {
+  color: #246348 !important;
+  font-weight: 600 !important;
+}
+
+/* Buttons */
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+  background: #236743 !important;
+  border: 1px solid #1c5436 !important;
+  color: #ffffff !important;
+  border-radius: 6px !important;
+  padding: 9px 18px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 2px 6px rgba(35, 103, 67, 0.2) !important;
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover, .submit-row input:hover {
+  background: #1b5336 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(35, 103, 67, 0.3) !important;
+}
+
+.button.default, input[type=submit].default, .submit-row input.default {
+  background: #184a32 !important;
+  border-color: #123826 !important;
+}
+
+/* Form inputs & contrast */
+input[type=text], input[type=password], input[type=email], input[type=url],
+input[type=number], input[type=tel], textarea, select, .vTextField {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 10px 12px !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 14px !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+input[type=text]:focus, input[type=password]:focus, textarea:focus, select:focus {
+  border-color: #236743 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(35, 103, 67, 0.2) !important;
+}
+
+/* Tables and Change Lists */
+#changelist table thead th {
+  background: #edf5ef !important;
+  color: #1f4231 !important;
+  border-bottom: 2px solid #c9decb !important;
+  font-weight: 700 !important;
+}
+
+#changelist table tbody tr:hover {
+  background: #f4faf5 !important;
+}
+
+/* Modules and Fieldsets */
+.module {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
+  margin-bottom: 22px !important;
+}
+
+.module h2, .module caption {
+  background: #edf5ef !important;
+  color: #1f4231 !important;
+  font-weight: 700 !important;
+  padding: 12px 18px !important;
+}
+
+/* Dedicated Admin Login Page Styling */
+body.login {
+  background: linear-gradient(135deg, #0e291e 0%, #1a4231 45%, #0d241a 100%) !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  margin: 0 !important;
+}
+
+#container {
+  background: transparent !important;
+  border: none !important;
+}
+
+.login-card-wrapper {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.login-card-header {
+  background: linear-gradient(135deg, #1b4533 0%, #256145 100%);
+  color: #ffffff;
+  padding: 28px 24px 22px;
+  text-align: center;
+  position: relative;
+  border-bottom: 3px solid #d4af37;
+}
+
+.login-emblem-wrap {
+  width: 108px;
+  height: 108px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  padding: 4px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+  display: grid;
+  place-items: center;
+}
+
+.login-emblem-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #d4af37;
+}
+
+.login-card-header h1 {
+  margin: 0 0 4px !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.03em !important;
+}
+
+.login-card-header p {
+  margin: 0;
+  color: #d1e5db;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.login-card-body {
+  padding: 28px 26px 24px;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.login-card-body .form-row {
+  margin-bottom: 18px;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.login-card-body label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #27382f;
+  margin-bottom: 6px;
+}
+
+.login-card-body input[type=text],
+.login-card-body input[type=password] {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 12px 14px !important;
+  font-size: 14px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  background: #f9fafb !important;
+  color: #111827 !important;
+}
+
+.login-card-body input[type=text]:focus,
+.login-card-body input[type=password]:focus {
+  background: #ffffff !important;
+  border-color: #236743 !important;
+  box-shadow: 0 0 0 3px rgba(35, 103, 67, 0.2) !important;
+}
+
+.login-submit-btn {
+  width: 100%;
+  padding: 13px 20px !important;
+  border-radius: 8px !important;
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  background: #236743 !important;
+  color: #ffffff !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(35, 103, 67, 0.3) !important;
+  transition: all 0.15s ease !important;
+  margin-top: 10px;
+}
+
+.login-submit-btn:hover {
+  background: #1b5336 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(35, 103, 67, 0.4) !important;
+}
+
+.login-card-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.login-card-footer a {
+  color: #236743;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-card-footer a:hover {
+  text-decoration: underline;
+}
+
+.login-demo-hint {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 12px;
+  color: #166534;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.login-demo-hint strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.login-demo-hint code {
+  background: #dcfce7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.login-error-note {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+}

@@ -1,7 +1,60 @@
 {% extends "base.html" %}
-{% block title %}Sign in · Casework{% endblock %}
+{% load static %}
+{% block title %}Sign in · SAKSHAM{% endblock %}
+
 {% block content %}
-<section class="panel auth-panel"><p class="eyebrow">SECURE WORKSPACE</p><h1>Sign in</h1><p class="muted">Sign in with your Django account to review overlaps and coordinate across Bureaus/Cells.</p>
-{% if form.errors %}<p class="message error">The username or password was not recognized.</p>{% endif %}
-<form method="post" class="stack-form">{% csrf_token %}<label for="id_username">Username</label>{{ form.username }}<label for="id_password">Password</label>{{ form.password }}<input type="hidden" name="next" value="{{ next }}"><button class="button primary" type="submit">Sign in</button></form></section>
+<div class="auth-card-container">
+  <div class="auth-card">
+    <div class="auth-card-header">
+      <div class="auth-logo-badge">
+        <img src="{% static 'complaints/logo.png' %}" alt="AICTE SAKSHAM Emblem" class="auth-logo-img">
+      </div>
+      <p class="auth-eyebrow">AICTE SAKSHAM · SECURE PORTAL</p>
+      <h1>Officer Sign In</h1>
+      <p class="auth-subtitle">Sign in to review institution complaints, manage overlap alerts, and coordinate across Bureaus.</p>
+    </div>
+
+    <div class="auth-card-body">
+      {% if form.errors %}
+        <div class="auth-error-box">
+          The username or password was not recognized. Please check your credentials and try again.
+        </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}" class="auth-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next|default:'' }}">
+
+        <div class="form-group">
+          <label for="id_username">Officer Username</label>
+          <input type="text" id="id_username" name="username" required placeholder="Enter your username" autocomplete="username" autofocus>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-hint">
+            <label for="id_password">Password</label>
+          </div>
+          <input type="password" id="id_password" name="password" required placeholder="Enter your password" autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="auth-submit-btn">Sign In to SAKSHAM →</button>
+      </form>
+
+      <div class="auth-demo-hint">
+        <strong>⚡ Quick Access / Testing:</strong>
+        <span>Need an account immediately? Click <strong>Create Account</strong> below to register any Bureau officer role, or use <code>audit_admin</code> for full supervisor rights.</span>
+      </div>
+
+      <div class="auth-card-footer">
+        <div>
+          <span>New officer?</span>
+          <a href="{% url 'register' %}{% if next %}?next={{ next }}{% endif %}" class="auth-highlight-link">Create officer account →</a>
+        </div>
+        <div class="auth-admin-sublink">
+          <a href="/admin/">System Administration Console ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

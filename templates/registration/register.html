@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Officer Registration · SAKSHAM{% endblock %}
+
+{% block content %}
+<div class="auth-card-container">
+  <div class="auth-card">
+    <div class="auth-card-header">
+      <div class="auth-logo-badge">
+        <img src="{% static 'complaints/logo.png' %}" alt="AICTE SAKSHAM Emblem" class="auth-logo-img">
+      </div>
+      <p class="auth-eyebrow">AICTE SAKSHAM · OFFICER ONBOARDING</p>
+      <h1>Create Officer Account</h1>
+      <p class="auth-subtitle">Register your institutional account to review complaints, track SLAs, and coordinate cross-Bureau actions.</p>
+    </div>
+
+    <div class="auth-card-body">
+      {% if messages %}
+        {% for message in messages %}
+          {% if message.tags == 'error' %}
+            <div class="auth-error-box">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      <form method="post" action="{% url 'register' %}" class="auth-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="form-group">
+          <label for="id_username">Officer Username <span class="required">*</span></label>
+          <input type="text" id="id_username" name="username" value="{{ form_data.username|default:'' }}" required placeholder="e.g. pgrc_officer1" autocomplete="username">
+          <small class="field-help">Used to sign in across the SAKSHAM workspace.</small>
+        </div>
+
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label for="id_first_name">First Name</label>
+            <input type="text" id="id_first_name" name="first_name" value="{{ form_data.first_name|default:'' }}" placeholder="e.g. Ramesh">
+          </div>
+          <div class="form-group">
+            <label for="id_last_name">Last Name</label>
+            <input type="text" id="id_last_name" name="last_name" value="{{ form_data.last_name|default:'' }}" placeholder="e.g. Sharma">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="id_email">Official Email</label>
+          <input type="email" id="id_email" name="email" value="{{ form_data.email|default:'' }}" placeholder="e.g. officer@aicte-india.org">
+        </div>
+
+        <div class="form-group">
+          <label for="id_bureau">Bureau / Cell Assignment <span class="required">*</span></label>
+          <select id="id_bureau" name="bureau" required>
+            <option value="" disabled {% if not form_data.bureau %}selected{% endif %}>Select your Bureau / Role…</option>
+            {% for bureau in bureaus %}
+              <option value="{{ bureau.code }}" {% if form_data.bureau == bureau.code %}selected{% endif %}>
+                {{ bureau.name }} ({{ bureau.code }})
+              </option>
+            {% endfor %}
+            <option value="COORDINATOR" {% if form_data.bureau == 'COORDINATOR' %}selected{% endif %}>
+              Overlap & Grievance Coordinator (Cross-Bureau Management)
+            </option>
+          </select>
+          <small class="field-help">Determines your case queue visibility and cross-cell permissions.</small>
+        </div>
+
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label for="id_password">Password <span class="required">*</span></label>
+            <input type="password" id="id_password" name="password" required placeholder="At least 6 characters" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="id_password_confirm">Confirm Password <span class="required">*</span></label>
+            <input type="password" id="id_password_confirm" name="password_confirm" required placeholder="Repeat password" autocomplete="new-password">
+          </div>
+        </div>
+
+        <button type="submit" class="auth-submit-btn">Create Officer Account →</button>
+      </form>
+
+      <div class="auth-card-footer">
+        <span>Already have an account?</span>
+        <a href="{% url 'login' %}{% if next %}?next={{ next }}{% endif %}">Sign in here</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

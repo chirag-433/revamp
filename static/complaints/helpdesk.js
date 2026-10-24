@@ -5,7 +5,7 @@
   const input = root.querySelector("[data-helpdesk-input]");
   const form = root.querySelector("[data-helpdesk-form]");
   const messages = root.querySelector("[data-helpdesk-messages]");
-  const csrf = form.querySelector("input[name=csrfmiddlewaretoken]").value;
+  const csrf = form?.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
 
   root.querySelector("[data-helpdesk-open]").addEventListener("click", function () {
     if (panel.hidden) {

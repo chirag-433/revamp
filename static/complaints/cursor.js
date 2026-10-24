@@ -3,9 +3,8 @@
     "(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)",
   );
   const overlay = document.querySelector(".cursor-overlay");
-  if (!finePointer.matches || !overlay) return;
-
-  const label = overlay.querySelector(".cursor-label");
+  const label = overlay?.querySelector(".cursor-label");
+  if (!finePointer.matches || !overlay || !label) return;
   let frame = 0;
   let pointerX = -100;
   let pointerY = -100;

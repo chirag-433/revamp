@@ -15,7 +15,7 @@ DEMO_PUBLIC_READONLY = os.getenv("DEMO_PUBLIC_READONLY", "1" if DEBUG else "0").
 STRICT_ROLE_SCOPING = os.getenv("STRICT_ROLE_SCOPING", "0" if DEBUG else "1").lower() in {"1", "true", "yes"}
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
     if host.strip()
 ]
 

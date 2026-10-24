@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | AICTE SAKSHAM Administration{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'complaints/admin_theme.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div class="admin-brand">
+  <img src="{% static 'complaints/logo.png' %}" alt="AICTE SAKSHAM Emblem" class="admin-brand-logo">
+  <div class="admin-brand-text">
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">AICTE SAKSHAM</a></h1>
+    <span class="admin-brand-sub">Grievance Monitoring & Oversight Administration</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

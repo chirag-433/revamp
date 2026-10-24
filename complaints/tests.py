@@ -387,7 +387,7 @@ class LoginTemplateTests(TestCase):
     def test_login_page_renders_utf8_title(self):
         response = Client().get(reverse("login"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sign in · Casework")
+        self.assertContains(response, "Sign in · SAKSHAM")
 
 
 class CaseTransferWorkflowTests(TestCase):
