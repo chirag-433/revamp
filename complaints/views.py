@@ -1,10 +1,14 @@
+import json
+
 from django.contrib import messages
+from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .models import BureauCell, CanonicalStatus, ComplaintCase, Institution
+from .services.ai_helpdesk import AIHelpdeskError, ask_gemini
 from .services.csv_import import CSVImportError, import_cases_csv
 
 
@@ -124,3 +128,23 @@ def import_cases(request):
         )
     return render(request, "complaints/import.html")
 
+
+def ai_helpdesk(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
+    try:
+        payload = json.loads(request.body)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Send a valid JSON message."}, status=400)
+
+    message = str(payload.get("message", "")).strip()
+    if not message:
+        return JsonResponse({"error": "Please enter a question."}, status=400)
+    if len(message) > 2000:
+        return JsonResponse({"error": "Please keep your question under 2,000 characters."}, status=400)
+
+    try:
+        answer = ask_gemini(message)
+    except AIHelpdeskError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    return JsonResponse({"answer": answer})
