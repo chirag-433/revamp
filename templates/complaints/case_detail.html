@@ -3,6 +3,33 @@
 {% block content %}
 <p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / {{ case }}</p>
 <div class="page-heading"><div><p class="eyebrow">{{ case.source_system }} · {{ case.source_case_id }}</p><h1>{{ case.case_number|default:case.source_case_id }}</h1><p class="muted">{{ case.bureau.code }} — {{ case.bureau.name }}</p></div><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></div>
+
+{% if overlap_links %}
+<section class="panel alert-panel alert-warning">
+  <div class="alert-icon">⚠️</div>
+  <div class="alert-content">
+    <h3>Cross-Bureau Overlap Detected</h3>
+    <p>This institution has concurrent open proceedings in another AICTE Bureau or Cell.</p>
+    <ul class="overlap-list">
+      {% for link in overlap_links %}
+        <li>
+          {% if link.case_a_id == case.id %}
+            With <strong>{{ link.case_b.bureau.code }}</strong> case
+            <a href="{% url 'complaints:case_detail' link.case_b_id %}">{{ link.case_b.case_number|default:link.case_b.source_case_id }}</a>
+            ({{ link.case_b.get_status_display }})
+          {% else %}
+            With <strong>{{ link.case_a.bureau.code }}</strong> case
+            <a href="{% url 'complaints:case_detail' link.case_a_id %}">{{ link.case_a.case_number|default:link.case_a.source_case_id }}</a>
+            ({{ link.case_a.get_status_display }})
+          {% endif %}
+          — Review status: <span class="status status-{{ link.review_state }}">{{ link.get_review_state_display }}</span>
+          <a class="button button-sm" href="{% url 'complaints:overlap_detail' link.pk %}">Compare &amp; Coordinate →</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
 <div class="detail-grid">
   <section class="panel"><div class="panel-heading"><h2>Case information</h2></div><dl class="details">
     <dt>Institution</dt><dd>{% if case.institution %}<a href="{% url 'complaints:institution_detail' case.institution_id %}">{{ case.institution.name }}</a>{% else %}{{ case.raw_institution_name|default:"Not provided" }}{% endif %}</dd>

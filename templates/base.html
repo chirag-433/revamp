@@ -14,6 +14,8 @@
     <nav aria-label="Main navigation">
       <a href="{% url 'complaints:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
       <a href="{% url 'complaints:case_list' %}" {% if request.resolver_match.url_name == 'case_list' or request.resolver_match.url_name == 'case_detail' %}aria-current="page"{% endif %}>Case register</a>
+      <a href="{% url 'complaints:match_review_queue' %}" {% if request.resolver_match.url_name == 'match_review_queue' %}aria-current="page"{% endif %}>Match Review</a>
+      <a href="{% url 'complaints:overlap_list' %}" {% if request.resolver_match.url_name == 'overlap_list' or request.resolver_match.url_name == 'overlap_detail' %}aria-current="page"{% endif %}>Overlaps</a>
       <a href="{% url 'complaints:import' %}" {% if request.resolver_match.url_name == 'import' %}aria-current="page"{% endif %}>Import data <span aria-hidden="true">↗</span></a>
       <a class="admin-link" href="/admin/">Admin</a>
     </nav>

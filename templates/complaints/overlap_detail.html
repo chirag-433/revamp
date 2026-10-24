@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Overlap Review #{{ link.pk }} · Institution Case Tracker{% endblock %}
+{% block content %}
+<p class="breadcrumb">
+  <a href="{% url 'complaints:overlap_list' %}">Overlaps</a> / Review #{{ link.pk }}
+</p>
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">CROSS-BUREAU OVERLAP COMPARISON</p>
+    <h1>Overlap Review #{{ link.pk }}</h1>
+    <p class="muted">
+      Shared Institution:
+      {% with inst=link.case_a.institution|default:link.case_b.institution %}
+      {% if inst %}
+        <a href="{% url 'complaints:institution_detail' inst.pk %}"><strong>{{ inst.name }}</strong></a>
+      {% else %}
+        <strong>Unresolved Institution</strong>
+      {% endif %}
+      {% endwith %}
+    </p>
+  </div>
+  <div>
+    <span class="status status-{{ link.review_state }}">{{ link.get_review_state_display }}</span>
+  </div>
+</div>
+
+<!-- Coordination Decision Box -->
+<section class="panel decision-box">
+  <div class="panel-heading">
+    <h2>Coordination Decision</h2>
+    {% if link.decided_at %}
+      <span class="muted">Reviewed on {{ link.decided_at|date:"j M Y, H:i" }} {% if link.decided_by %}by {{ link.decided_by }}{% endif %}</span>
+    {% else %}
+      <span class="badge badge-warning">Awaiting Officer Decision</span>
+    {% endif %}
+  </div>
+
+  {% if link.decision_note %}
+    <p class="decision-note"><strong>Recorded Note:</strong> {{ link.decision_note }}</p>
+  {% endif %}
+
+  <form method="post" class="overlap-decision-form">
+    {% csrf_token %}
+    <label>
+      <span>Officer Note / Coordination Instructions</span>
+      <textarea name="note" rows="2" placeholder="e.g., PGRC to coordinate with Regulation Bureau regarding ongoing enquiry...">{{ link.decision_note|default:"" }}</textarea>
+    </label>
+    <div class="decision-actions">
+      <button type="submit" name="decision" value="confirmed" class="button button-success">
+        ✓ Confirm Overlap (Active Coordination)
+      </button>
+      <button type="submit" name="decision" value="related" class="button">
+        ↔ Mark as Related (Informational Link)
+      </button>
+      <button type="submit" name="decision" value="rejected" class="button button-danger">
+        ✕ Reject / Not an Overlap
+      </button>
+    </div>
+  </form>
+</section>
+
+<!-- Side-by-Side Comparison -->
+<div class="side-by-side-grid">
+  <!-- Case A Column -->
+  <section class="panel case-comparison-col">
+    <div class="panel-heading">
+      <div>
+        <span class="bureau-pill">{{ link.case_a.bureau.code }}</span>
+        <h2>Case A: <a href="{% url 'complaints:case_detail' link.case_a.pk %}">{{ link.case_a.case_number|default:link.case_a.source_case_id }}</a></h2>
+      </div>
+      <span class="status status-{{ link.case_a.status }}">{{ link.case_a.get_status_display }}</span>
+    </div>
+
+    <dl class="details">
+      <dt>Bureau / Cell</dt>
+      <dd>{{ link.case_a.bureau.name }} ({{ link.case_a.bureau.code }})</dd>
+      <dt>Source System</dt>
+      <dd>{{ link.case_a.source_system }} · {{ link.case_a.source_case_id }}</dd>
+      <dt>Category</dt>
+      <dd>{{ link.case_a.category|default:"—" }}</dd>
+      <dt>Assigned Officer</dt>
+      <dd>{{ link.case_a.assigned_officer|default:"—" }}</dd>
+      <dt>Received Date</dt>
+      <dd>{{ link.case_a.received_at|date:"j M Y, H:i"|default:"—" }}</dd>
+      <dt>Last Action</dt>
+      <dd>{{ link.case_a.last_action_at|date:"j M Y, H:i"|default:"—" }}</dd>
+      <dt>Next Action</dt>
+      <dd>{{ link.case_a.next_action|default:"—" }}</dd>
+      <dt>SLA Due</dt>
+      <dd>{{ link.case_a.sla_due_at|date:"j M Y"|default:"—" }}</dd>
+    </dl>
+
+    <h3>Case Summary / Grievance</h3>
+    <p class="prose">{{ link.case_a.description|default:"No description provided."|linebreaksbr }}</p>
+
+    <h3>Recent Actions</h3>
+    <div class="timeline">
+      {% for action in link.case_a.actions.all %}
+        <article class="timeline-item">
+          <time>{{ action.acted_at|date:"j M Y" }}</time>
+          <div>
+            <strong>{{ action.action_type|capfirst }}</strong>
+            <p>{{ action.remarks|default:"No remarks" }}</p>
+          </div>
+        </article>
+      {% empty %}
+        <p class="empty">No recorded actions.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Case B Column -->
+  <section class="panel case-comparison-col">
+    <div class="panel-heading">
+      <div>
+        <span class="bureau-pill">{{ link.case_b.bureau.code }}</span>
+        <h2>Case B: <a href="{% url 'complaints:case_detail' link.case_b.pk %}">{{ link.case_b.case_number|default:link.case_b.source_case_id }}</a></h2>
+      </div>
+      <span class="status status-{{ link.case_b.status }}">{{ link.case_b.get_status_display }}</span>
+    </div>
+
+    <dl class="details">
+      <dt>Bureau / Cell</dt>
+      <dd>{{ link.case_b.bureau.name }} ({{ link.case_b.bureau.code }})</dd>
+      <dt>Source System</dt>
+      <dd>{{ link.case_b.source_system }} · {{ link.case_b.source_case_id }}</dd>
+      <dt>Category</dt>
+      <dd>{{ link.case_b.category|default:"—" }}</dd>
+      <dt>Assigned Officer</dt>
+      <dd>{{ link.case_b.assigned_officer|default:"—" }}</dd>
+      <dt>Received Date</dt>
+      <dd>{{ link.case_b.received_at|date:"j M Y, H:i"|default:"—" }}</dd>
+      <dt>Last Action</dt>
+      <dd>{{ link.case_b.last_action_at|date:"j M Y, H:i"|default:"—" }}</dd>
+      <dt>Next Action</dt>
+      <dd>{{ link.case_b.next_action|default:"—" }}</dd>
+      <dt>SLA Due</dt>
+      <dd>{{ link.case_b.sla_due_at|date:"j M Y"|default:"—" }}</dd>
+    </dl>
+
+    <h3>Case Summary / Grievance</h3>
+    <p class="prose">{{ link.case_b.description|default:"No description provided."|linebreaksbr }}</p>
+
+    <h3>Recent Actions</h3>
+    <div class="timeline">
+      {% for action in link.case_b.actions.all %}
+        <article class="timeline-item">
+          <time>{{ action.acted_at|date:"j M Y" }}</time>
+          <div>
+            <strong>{{ action.action_type|capfirst }}</strong>
+            <p>{{ action.remarks|default:"No remarks" }}</p>
+          </div>
+        </article>
+      {% empty %}
+        <p class="empty">No recorded actions.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
