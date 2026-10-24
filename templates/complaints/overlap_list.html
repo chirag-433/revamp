@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Cross-Bureau Overlaps · Institution Case Tracker{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PHASE 3 · CROSS-BUREAU COORDINATION</p>
+    <h1>Cross-Bureau Overlap Cases</h1>
+    <p class="muted">Detect and coordinate concurrent proceedings regarding the same institution across AICTE Bureaus and Cells.</p>
+  </div>
+  <a class="button" href="{% url 'complaints:case_list' %}">← Back to Cases</a>
+</div>
+
+<section class="summary-grid" aria-label="Overlap stats">
+  <div class="summary-card">
+    <span>Pending Review</span>
+    <strong>{{ pending_count }}</strong>
+  </div>
+  <div class="summary-card">
+    <span>Current Filter Total</span>
+    <strong>{{ page.paginator.count }}</strong>
+  </div>
+</section>
+
+<!-- State filter tabs -->
+<div class="tab-bar">
+  <a href="{% url 'complaints:overlap_list' %}?state=" class="tab-link {% if not state_filter %}tab-active{% endif %}">All</a>
+  {% for val, label in review_states %}
+    <a href="{% url 'complaints:overlap_list' %}?state={{ val }}" class="tab-link {% if state_filter == val %}tab-active{% endif %}">
+      {{ label }}
+    </a>
+  {% endfor %}
+</div>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Detected Overlap Pairs</h2>
+    <span class="muted">{{ page.paginator.count }} record{{ page.paginator.count|pluralize }}</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Institution</th>
+          <th>Case A (Bureau)</th>
+          <th>Case B (Bureau)</th>
+          <th>State</th>
+          <th>Detected</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for link in page %}
+        <tr>
+          <td>
+            {% with inst=link.case_a.institution|default:link.case_b.institution %}
+            {% if inst %}
+              <a class="strong-link" href="{% url 'complaints:institution_detail' inst.pk %}">
+                {{ inst.name }}
+              </a>
+              <small>{{ inst.district }}, {{ inst.state }}</small>
+            {% else %}
+              <span class="muted">Unlinked Institution</span>
+            {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            <a href="{% url 'complaints:case_detail' link.case_a.pk %}">
+              {{ link.case_a.case_number|default:link.case_a.source_case_id }}
+            </a>
+            <span class="bureau-pill">{{ link.case_a.bureau.code }}</span>
+            <small>{{ link.case_a.get_status_display }} · {{ link.case_a.category|default:"—" }}</small>
+          </td>
+          <td>
+            <a href="{% url 'complaints:case_detail' link.case_b.pk %}">
+              {{ link.case_b.case_number|default:link.case_b.source_case_id }}
+            </a>
+            <span class="bureau-pill">{{ link.case_b.bureau.code }}</span>
+            <small>{{ link.case_b.get_status_display }} · {{ link.case_b.category|default:"—" }}</small>
+          </td>
+          <td>
+            <span class="status status-{{ link.review_state }}">
+              {{ link.get_review_state_display }}
+            </span>
+          </td>
+          <td>
+            <small>{{ link.created_at|date:"j M Y, H:i" }}</small>
+          </td>
+          <td style="text-align: right;">
+            <a class="button button-sm primary" href="{% url 'complaints:overlap_detail' link.pk %}">
+              Review &amp; Compare →
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty">No overlap pairs found for this filter.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+  <div class="pagination">
+    {% if page.has_previous %}
+      <a href="?state={{ state_filter }}&page={{ page.previous_page_number }}">← Previous</a>
+    {% else %}
+      <span></span>
+    {% endif %}
+    <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+      <a href="?state={{ state_filter }}&page={{ page.next_page_number }}">Next →</a>
+    {% else %}
+      <span></span>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

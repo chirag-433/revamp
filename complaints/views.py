@@ -13,7 +13,10 @@ from .models import (
     InstitutionMatchStatus,
 )
 from .services.csv_import import CSVImportError, import_cases_csv
-from .services.overlap import suggested_overlap_links, sync_overlap_suggestions
+from .services.matching import resolve_institution
+from .services.overlap import (
+    detect_overlaps_for_case, suggested_overlap_links, sync_overlap_suggestions,
+)
 
 
 def _bureau_group_codes(user):
@@ -115,6 +118,8 @@ def case_list(request):
         "filters": {"q": query, "status": status, "bureau": bureau},
         "total_cases": ComplaintCase.objects.count(),
         "unmapped_institutions": ComplaintCase.objects.filter(institution__isnull=True).count(),
+        "pending_overlaps": CaseLink.objects.filter(link_type=CaseLink.LinkType.OVERLAP, review_state=CaseLink.ReviewState.SUGGESTED).count(),
+        "review_queue_count": ComplaintCase.objects.filter(match_status=InstitutionMatchStatus.FUZZY_SUGGESTED).count(),
     })
 
 
@@ -130,8 +135,11 @@ def case_detail(request, pk):
         ).exclude(link_type=CaseLink.LinkType.OVERLAP)).select_related(
             "case_a", "case_b", "case_a__bureau", "case_b__bureau"
         )
+    overlap_links = CaseLink.objects.filter(link_case_query_for_case(case),
+        link_type=CaseLink.LinkType.OVERLAP).select_related(
+            "case_a__bureau", "case_b__bureau", "case_a__institution", "case_b__institution")
     return render(request, "complaints/case_detail.html",
-                  {"case": case, "related_links": related_links})
+                  {"case": case, "related_links": related_links, "overlap_links": overlap_links})
 
 
 def link_case_query_for_case(case):
@@ -153,10 +161,11 @@ def institution_detail(request, pk):
     has_overlap_alert = _scope_overlap_links(request.user, suggested_overlap_links()).filter(
         Q(case_a__institution_id=institution.pk) | Q(case_b__institution_id=institution.pk)
     ).exists()
+    active_bureaus = list(cases.exclude(status=CanonicalStatus.DISPOSED).values_list("bureau__code", flat=True).distinct())
     return render(request, "complaints/institution_detail.html", {
         "institution": institution, "cases": cases, "overlap_links": links,
-        "has_overlap_alert": has_overlap_alert,
-        "can_review_overlaps": can_review,
+        "has_overlap_alert": has_overlap_alert, "has_overlap": len(active_bureaus) > 1,
+        "active_bureaus": active_bureaus, "can_review_overlaps": can_review,
     })
 
 
@@ -171,11 +180,86 @@ def import_cases(request):
         except CSVImportError as exc:
             messages.error(request, str(exc))
             return redirect("complaints:import")
+        match_count = overlap_count = 0
+        unresolved = ComplaintCase.objects.filter(match_status=InstitutionMatchStatus.UNMATCHED, institution__isnull=True).exclude(raw_institution_name="")
+        for case in unresolved:
+            matched = resolve_institution(case)
+            if matched and case.match_status in {InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED}:
+                match_count += 1
+                overlap_count += len(detect_overlaps_for_case(case))
         messages.success(request,
-                         f"Import finished: {result.created} created, {result.updated} updated, "
-                         f"{len(result.errors)} row errors.")
-        return render(request, "complaints/import_result.html", {"result": result})
+            f"Import finished: {result.created} created, {result.updated} updated, "
+            f"{len(result.errors)} row errors. Matching resolved {match_count} institutions, "
+            f"{overlap_count} overlaps detected.")
+        return render(request, "complaints/import_result.html", {"result": result, "match_count": match_count, "overlap_count": overlap_count})
     return render(request, "complaints/import.html")
+
+
+@login_required
+@permission_required("complaints.view_caselink", raise_exception=True)
+def match_review_queue(request):
+    cases = _scope_cases(request.user, ComplaintCase.objects.filter(
+        match_status=InstitutionMatchStatus.FUZZY_SUGGESTED
+    )).select_related("institution", "bureau").order_by("-match_confidence", "-received_at")
+    page = Paginator(cases, 25).get_page(request.GET.get("page"))
+    return render(request, "complaints/match_review_queue.html", {
+        "page": page,
+        "can_review": request.user.has_perm("complaints.review_case_links"),
+    })
+
+
+@login_required
+@permission_required("complaints.review_case_links", raise_exception=True)
+def match_review_action(request, pk):
+    if request.method != "POST":
+        return redirect("complaints:match_review_queue")
+    case = get_object_or_404(ComplaintCase.objects.select_related("bureau", "institution"),
+                             pk=pk, match_status=InstitutionMatchStatus.FUZZY_SUGGESTED)
+    codes = _bureau_group_codes(request.user)
+    if codes and not _is_overlap_manager(request.user) and case.bureau.code not in codes:
+        return HttpResponseForbidden("You do not have access to this Bureau/Cell.")
+    decision = request.POST.get("decision", "").strip()
+    if decision == "confirm":
+        case.match_status = InstitutionMatchStatus.CONFIRMED
+        case.save(update_fields=["match_status", "updated_at"])
+        created = sync_overlap_suggestions(institution_id=case.institution_id) if case.institution_id else []
+        AuditLog.objects.create(actor=request.user, action="institution_match_confirmed",
+                                entity_type="ComplaintCase", entity_id=str(case.pk),
+                                details={"institution_id": case.institution_id})
+        messages.success(request, f"Institution match confirmed for {case}. {len(created)} overlap(s) detected.")
+    elif decision == "reject":
+        previous_institution = case.institution_id
+        case.institution = None
+        case.match_status = InstitutionMatchStatus.UNMATCHED
+        case.match_confidence = None
+        case.save(update_fields=["institution", "match_status", "match_confidence", "updated_at"])
+        AuditLog.objects.create(actor=request.user, action="institution_match_rejected",
+                                entity_type="ComplaintCase", entity_id=str(case.pk),
+                                details={"previous_institution_id": previous_institution})
+        messages.info(request, f"Institution match rejected for {case}.")
+    else:
+        messages.error(request, "Invalid decision.")
+    return redirect("complaints:match_review_queue")
+
+
+@login_required
+@permission_required("complaints.view_caselink", raise_exception=True)
+def overlap_list(request):
+    state_filter = request.GET.get("state", "suggested").strip()
+    links = _scope_overlap_links(request.user, CaseLink.objects.filter(
+        link_type=CaseLink.LinkType.OVERLAP
+    )).select_related("case_a__institution", "case_a__bureau", "case_b__institution",
+                        "case_b__bureau", "decided_by")
+    if state_filter in CaseLink.ReviewState.values:
+        links = links.filter(review_state=state_filter)
+    page = Paginator(links.order_by("-created_at"), 20).get_page(request.GET.get("page"))
+    pending_count = _scope_overlap_links(request.user, CaseLink.objects.filter(
+        link_type=CaseLink.LinkType.OVERLAP, review_state=CaseLink.ReviewState.SUGGESTED
+    )).count()
+    return render(request, "complaints/overlap_list.html", {
+        "page": page, "state_filter": state_filter,
+        "review_states": CaseLink.ReviewState.choices, "pending_count": pending_count,
+    })
 
 
 @login_required
@@ -207,6 +291,13 @@ def overlap_center(request):
 @login_required
 @permission_required("complaints.view_caselink", raise_exception=True)
 def overlap_detail(request, pk):
+    if request.method == "POST":
+        data = request.POST.copy()
+        legacy_decisions = {"confirmed": "confirm", "rejected": "reject", "related": "related"}
+        data["decision"] = legacy_decisions.get(data.get("decision", ""), data.get("decision", ""))
+        data["reason"] = data.get("reason", data.get("note", ""))
+        request.POST = data
+        return decide_overlap(request, pk)
     link = get_object_or_404(
         CaseLink.objects.select_related(
             "case_a__institution", "case_a__bureau", "case_b__institution", "case_b__bureau"

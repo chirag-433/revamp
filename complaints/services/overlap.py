@@ -2,10 +2,11 @@ from difflib import SequenceMatcher
 from itertools import combinations
 
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Exists, F, OuterRef
 
 from complaints.models import (
-    CanonicalStatus, CaseLink, ComplaintCase, InstitutionMatchStatus,
+    AuditLog, CanonicalStatus, CaseLink, ComplaintCase, InstitutionMatchStatus,
 )
 
 
@@ -116,3 +117,56 @@ def suggested_overlap_links():
     ).exclude(case_a__bureau_id=F("case_b__bureau_id")).annotate(
         has_related_link=Exists(active_related)
     ).filter(has_related_link=False)
+
+
+# Phase 3 service API retained for the matching command and existing callers.
+def detect_overlaps_for_case(case):
+    if (not case.institution_id or case.status == CanonicalStatus.DISPOSED
+            or case.match_status not in {InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED}):
+        return []
+    created = sync_overlap_suggestions(institution_id=case.institution_id)
+    return [link for link in created if case.pk in {link.case_a_id, link.case_b_id}]
+
+
+def detect_overlaps_for_institution(institution_id):
+    return sync_overlap_suggestions(institution_id=institution_id)
+
+
+def run_full_overlap_scan():
+    from django.db.models import Count
+    institutions = (
+        ComplaintCase.objects.filter(
+            institution__isnull=False,
+            match_status__in=[InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED],
+        ).exclude(status=CanonicalStatus.DISPOSED)
+        .values("institution_id")
+        .annotate(bureau_count=Count("bureau_id", distinct=True))
+        .filter(bureau_count__gt=1)
+    )
+    stats = {"institutions_scanned": 0, "links_created": 0}
+    for row in institutions:
+        stats["institutions_scanned"] += 1
+        stats["links_created"] += len(sync_overlap_suggestions(row["institution_id"]))
+    return stats
+
+
+def review_overlap(link, decision, user=None, note=""):
+    """Compatibility API for Phase 3 callers; decisions remain audited."""
+    choices = {
+        "confirmed": (CaseLink.LinkType.OVERLAP, CaseLink.ReviewState.CONFIRMED, "overlap_confirmed"),
+        "rejected": (CaseLink.LinkType.OVERLAP, CaseLink.ReviewState.REJECTED, "overlap_rejected"),
+        "related": (CaseLink.LinkType.RELATED, CaseLink.ReviewState.CONFIRMED, "overlap_linked_as_related"),
+    }
+    if decision not in choices:
+        raise ValueError(f"Invalid decision: {decision}")
+    link.link_type, link.review_state, action = choices[decision]
+    link.decided_by = user
+    link.decision_note = note
+    link.decided_at = timezone.now()
+    link.save()
+    AuditLog.objects.create(
+        actor=user, action=action, entity_type="CaseLink", entity_id=str(link.pk),
+        details={"case_a": link.case_a_id, "case_b": link.case_b_id,
+                 "decision": decision, "reason": note, "note": note},
+    )
+    return link
