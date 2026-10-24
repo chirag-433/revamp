@@ -4,21 +4,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Institution Case Tracker{% endblock %}</title>
+  <title>{% block title %}Casework · Institution Grievance Monitor{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'complaints/site.css' %}">
 </head>
 <body>
+  <div class="institution-ribbon"><span class="ribbon-seal" aria-hidden="true">✳</span><span>INSTITUTION OPERATIONS</span><i></i><span>GRIEVANCE REDRESSAL &amp; CASE MONITORING</span><span class="ribbon-note">DEMO WORKSPACE</span></div>
   <header class="topbar">
-    <a class="brand" href="{% url 'complaints:case_list' %}">Institution Case Tracker</a>
+    <a class="brand" href="{% url 'complaints:dashboard' %}"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M6 16.5 20 8l14 8.5M9 18v13m7-13v13m8-13v13m7-13v13M6 33h28M4 16h32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4.5v5M18 6h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="brand-copy">CASEWORK<small>Institution case monitor</small></span></a>
     <nav aria-label="Main navigation">
-      <a href="{% url 'complaints:case_list' %}">Cases</a>
-      <a href="{% url 'complaints:match_review_queue' %}">Match Review</a>
-      <a href="{% url 'complaints:overlap_list' %}">Overlaps</a>
-      <a href="{% url 'complaints:import' %}">Import CSV</a>
-      <a href="/admin/">Admin</a>
+      <a href="{% url 'complaints:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
+      <a href="{% url 'complaints:case_list' %}" {% if request.resolver_match.url_name == 'case_list' or request.resolver_match.url_name == 'case_detail' %}aria-current="page"{% endif %}>Case register</a>
+      <a href="{% url 'complaints:match_review_queue' %}" {% if request.resolver_match.url_name == 'match_review_queue' %}aria-current="page"{% endif %}>Match Review</a>
+      <a href="{% url 'complaints:overlap_list' %}" {% if request.resolver_match.url_name == 'overlap_list' or request.resolver_match.url_name == 'overlap_detail' %}aria-current="page"{% endif %}>Overlaps</a>
+      <a href="{% url 'complaints:import' %}" {% if request.resolver_match.url_name == 'import' %}aria-current="page"{% endif %}>Import data <span aria-hidden="true">↗</span></a>
+      <a class="admin-link" href="/admin/">Admin</a>
     </nav>
   </header>
-  <main class="container">
+  <main class="container {% block main_class %}{% endblock %}">
     {% if messages %}
       <div class="messages" aria-live="polite">
         {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}
@@ -26,7 +28,10 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="footer">Prototype data only. Do not upload real complainant information.</footer>
+  <footer class="footer"><span>CASEWORK <i>·</i> Institution case monitor</span><span>Demonstration workspace · Use synthetic data only</span></footer>
+  <div class="cursor-overlay" aria-hidden="true"><span class="cursor-center"></span><span class="cursor-label"></span></div>
+  <script src="{% static 'complaints/cursor.js' %}" defer></script>
 </body>
 </html>
+
 
