@@ -1,6 +1,6 @@
 # SIH MVP Scope: Institution Complaint Monitoring Dashboard
 
-**Status:** Draft for the first prototype iteration  
+**Status:** Prototype baseline documented; official problem-statement sign-off pending
 **Evidence base:** The three supplied planning/research documents  
 **Open validation:** Confirm the exact AICTE problem statement and its required fields/statuses before treating this scope as final.
 
@@ -83,7 +83,7 @@ The prototype currently uses Django templates and SQLite by default, with Postgr
 
 - Obtain the exact problem statement and extract its required fields, users, outputs, and constraints.
 - Confirm the demo journey and choose one frontend approach.
-- **Exit:** requirement-to-feature checklist and a frozen first-demo scope.
+- **Exit:** requirement-to-feature checklist and a frozen first-demo scope. The available scope baseline and checklist are recorded in [`REQUIREMENTS_TRACEABILITY.md`](REQUIREMENTS_TRACEABILITY.md); official sign-off remains pending until the full problem statement is supplied and checked.
 
 ### Part 1 — Foundation
 
@@ -115,7 +115,7 @@ The prototype currently uses Django templates and SQLite by default, with Postgr
 
 ## 8. Decisions still needed
 
-1. The full official problem statement is not present in the supplied pasted text; it has a `PASTED` placeholder. Validate against the official PS before finalizing fields and requirement coverage.
+1. The full official problem statement is not present in the supplied pasted text; it has a `PASTED` placeholder. Validate against the official PS before finalizing fields and requirement coverage. See [`REQUIREMENTS_TRACEABILITY.md`](REQUIREMENTS_TRACEABILITY.md) for the current mapping and open assumptions.
 2. The application uses Django templates and supports SQLite for local development plus PostgreSQL configuration.
 3. Treat SIH dates, rules, and winner statistics in the research PDFs as research notes until checked against current official sources.
 

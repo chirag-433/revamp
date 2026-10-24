@@ -10,14 +10,16 @@ from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.dateparse import parse_date
+from django.conf import settings
 
 from .models import (
-    AuditLog, BureauCell, CanonicalStatus, CaseAction, CaseLink, ComplaintCase,
+    AuditLog, BureauCell, CanonicalStatus, CaseAction, CaseLink, CaseTransfer, ComplaintCase,
     CoordinationMessage, CoordinationNotification, Institution,
     InstitutionMatchStatus, SlaAlert, SyntheticMatchLabel,
 )
 from .forms import CaseWorkflowForm
-from .services.ai_helpdesk import AIHelpdeskError, ask_gemini
+from .services.ai_helpdesk import AIHelpdeskError, ask_sarvam
 from .services.csv_import import CSVImportError, import_cases_csv
 from .services.matching import (
     AUTO_THRESHOLD, REVIEW_THRESHOLD, find_candidates, resolve_institution,
@@ -37,13 +39,32 @@ def _bureau_group_codes(user):
 
 def _is_overlap_manager(user):
     return user.is_authenticated and (user.is_superuser or user.is_staff or
-                                      user.groups.filter(name="overlap-managers").exists())
+                                      user.groups.filter(name__in=[
+                                          "overlap-managers", "senior-management", "admin"
+                                      ]).exists())
+
+
+def _region_group_names(user):
+    if not user.is_authenticated:
+        return set()
+    return {name.removeprefix("region:") for name in
+            user.groups.filter(name__startswith="region:").values_list("name", flat=True)}
 
 
 def _scope_overlap_links(user, queryset):
+    if not user.is_authenticated:
+        return queryset if settings.DEMO_PUBLIC_READONLY else queryset.none()
+    if _is_overlap_manager(user):
+        return queryset
     codes = _bureau_group_codes(user)
-    if codes and not _is_overlap_manager(user):
-        return queryset.filter(Q(case_a__bureau__code__in=codes) | Q(case_b__bureau__code__in=codes))
+    regions = _region_group_names(user)
+    if codes:
+        queryset = queryset.filter(Q(case_a__bureau__code__in=codes) | Q(case_b__bureau__code__in=codes))
+    if regions:
+        queryset = queryset.filter(Q(case_a__institution__region__in=regions)
+                                   | Q(case_b__institution__region__in=regions))
+    if settings.STRICT_ROLE_SCOPING and not codes and not regions:
+        return queryset.none()
     return queryset
 
 
@@ -55,9 +76,18 @@ def _can_access_case_pair(user, case_a, case_b):
 
 
 def _scope_cases(user, queryset):
+    if not user.is_authenticated:
+        return queryset if settings.DEMO_PUBLIC_READONLY else queryset.none()
+    if _is_overlap_manager(user):
+        return queryset
     codes = _bureau_group_codes(user)
-    if codes and not _is_overlap_manager(user):
-        return queryset.filter(bureau__code__in=codes)
+    regions = _region_group_names(user)
+    if codes:
+        queryset = queryset.filter(bureau__code__in=codes)
+    if regions:
+        queryset = queryset.filter(institution__region__in=regions)
+    if settings.STRICT_ROLE_SCOPING and not codes and not regions:
+        return queryset.none()
     return queryset
 
 
@@ -104,11 +134,20 @@ def dashboard(request):
     ).select_related("case", "case__bureau", "case__institution").order_by(
         "case__sla_due_at", "opened_at"
     )[:8]
+    conflict_links = _scope_overlap_links(request.user, CaseLink.objects.filter(
+        link_type=CaseLink.LinkType.CONFLICT,
+        review_state=CaseLink.ReviewState.SUGGESTED,
+    )).select_related("case_a__bureau", "case_b__bureau")[:4]
     return render(request, "complaints/dashboard.html", {
         "total_cases": total, "open_cases": open_cases,
         "escalated_cases": escalated, "unmatched_cases": unmatched,
         "due_soon_cases": due_soon_cases, "overdue_cases": overdue_cases,
         "sla_alerts": active_sla_alerts,
+        "conflict_links": conflict_links,
+        "conflict_alert_count": _scope_overlap_links(request.user, CaseLink.objects.filter(
+            link_type=CaseLink.LinkType.CONFLICT,
+            review_state=CaseLink.ReviewState.SUGGESTED,
+        )).count(),
         "attention_cases": needs_attention,
         "recent_cases": cases.order_by("-received_at", "-id")[:6],
         "bureau_load": bureau_load,
@@ -124,34 +163,67 @@ def dashboard(request):
 
 def case_list(request):
     cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
+    filters = {
+        name: request.GET.get(name, "").strip()
+        for name in ("institution", "permanent_id", "case_id", "bureau", "region",
+                     "category", "status", "date_from", "date_to", "sla")
+    }
     query = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "").strip()
-    bureau = request.GET.get("bureau", "").strip()
-    sla = request.GET.get("sla", "").strip()
     if query:
         cases = cases.filter(Q(case_number__icontains=query)
                              | Q(source_case_id__icontains=query)
                              | Q(raw_institution_name__icontains=query)
                              | Q(institution__name__icontains=query))
-    if status in CanonicalStatus.values:
-        cases = cases.filter(status=status)
-    if bureau.isdigit():
-        cases = cases.filter(bureau_id=int(bureau))
+    if filters["institution"]:
+        value = filters["institution"]
+        cases = cases.filter(Q(raw_institution_name__icontains=value)
+                             | Q(institution__name__icontains=value))
+    if filters["permanent_id"]:
+        cases = cases.filter(institution__aicte_permanent_id__icontains=filters["permanent_id"])
+    if filters["case_id"]:
+        value = filters["case_id"]
+        cases = cases.filter(Q(case_number__icontains=value) | Q(source_case_id__icontains=value))
+    if filters["status"] in CanonicalStatus.values:
+        cases = cases.filter(status=filters["status"])
+    if filters["bureau"].isdigit():
+        cases = cases.filter(bureau_id=int(filters["bureau"])).filter(
+            bureau__code__in=(list(_bureau_group_codes(request.user))
+                              if _bureau_group_codes(request.user) and not _is_overlap_manager(request.user)
+                              else BureauCell.objects.filter(is_active=True).values("code"))
+        )
+    if filters["region"]:
+        cases = cases.filter(institution__region__iexact=filters["region"])
+    if filters["category"]:
+        cases = cases.filter(category__iexact=filters["category"])
+    start_date = parse_date(filters["date_from"]) if filters["date_from"] else None
+    end_date = parse_date(filters["date_to"]) if filters["date_to"] else None
+    if start_date:
+        cases = cases.filter(received_at__date__gte=start_date)
+    if end_date:
+        cases = cases.filter(received_at__date__lte=end_date)
     now = timezone.now()
-    if sla == "overdue":
+    if filters["sla"] == "overdue":
         cases = cases.filter(sla_due_at__lt=now).exclude(status=CanonicalStatus.DISPOSED)
-    elif sla == "due_soon":
+    elif filters["sla"] == "due_soon":
         cases = cases.filter(sla_due_at__gt=now, sla_due_at__lte=now + timedelta(days=3)).exclude(
             status=CanonicalStatus.DISPOSED
         )
     paginator = Paginator(cases, 25)
     page = paginator.get_page(request.GET.get("page"))
+    filters["q"] = query
+    filters_query = request.GET.copy()
+    filters_query.pop("page", None)
     return render(request, "complaints/case_list.html", {
         "page": page, "bureaus": BureauCell.objects.filter(is_active=True,
             **({"code__in": _bureau_group_codes(request.user)} if _bureau_group_codes(request.user)
                and not _is_overlap_manager(request.user) else {})),
+        "regions": Institution.objects.filter(is_active=True).exclude(region="").values_list(
+            "region", flat=True).distinct().order_by("region"),
+        "categories": ComplaintCase.objects.exclude(category="").values_list(
+            "category", flat=True).distinct().order_by("category"),
         "statuses": CanonicalStatus.choices,
-        "filters": {"q": query, "status": status, "bureau": bureau, "sla": sla},
+        "filters": filters,
+        "filters_query": filters_query.urlencode(),
         "total_cases": _scope_cases(request.user, ComplaintCase.objects.all()).count(),
         "unmapped_institutions": _scope_cases(request.user, ComplaintCase.objects.filter(institution__isnull=True)).count(),
         "pending_overlaps": _scope_overlap_links(request.user, CaseLink.objects.filter(
@@ -180,9 +252,19 @@ def case_detail(request, pk):
         "sla_due_at": timezone.localtime(case.sla_due_at).strftime("%Y-%m-%dT%H:%M") if case.sla_due_at else "",
     })
     can_update = request.user.is_authenticated and request.user.has_perm("complaints.manage_case_workflow")
+    transfers = case.transfers.select_related("from_bureau", "to_bureau", "requested_by")
+    pending_transfers = transfers.filter(state=CaseTransfer.State.PENDING)
+    if not _is_overlap_manager(request.user):
+        transfer_codes = _bureau_group_codes(request.user)
+        if transfer_codes:
+            pending_transfers = pending_transfers.filter(to_bureau__code__in=transfer_codes)
+        else:
+            pending_transfers = pending_transfers.none()
     return render(request, "complaints/case_detail.html", {
         "case": case, "related_links": related_links, "overlap_links": overlap_links,
         "workflow_form": form, "can_update_workflow": can_update,
+        "transfers": transfers,
+        "pending_transfers": pending_transfers if can_update else pending_transfers.none(),
     })
 
 
@@ -210,8 +292,18 @@ def record_case_action(request, pk):
         case.last_action_at = timezone.now()
         case.sla_due_at = values["sla_due_at"]
         case.save(update_fields=["status", "next_action", "last_action_at", "sla_due_at", "updated_at"])
+        action_type = f"Updated to {case.get_status_display()}"
+        to_bureau = None
+        if values.get("transfer_to"):
+            to_bureau = values["transfer_to"]
+            CaseTransfer.objects.create(
+                case=case, from_bureau=case.bureau, to_bureau=to_bureau,
+                requested_by=request.user, previous_status=previous_status,
+                note=values["remarks"],
+            )
+            action_type = "transfer_requested"
         CaseAction.objects.create(
-            case=case, action_type=f"Updated to {case.get_status_display()}", from_bureau=case.bureau,
+            case=case, action_type=action_type, from_bureau=case.bureau, to_bureau=to_bureau,
             actor=request.user, actor_label=request.user.get_full_name() or request.user.get_username(),
             acted_at=case.last_action_at, remarks=values["remarks"],
         )
@@ -219,10 +311,64 @@ def record_case_action(request, pk):
             actor=request.user, action="case_workflow_updated", entity_type="ComplaintCase",
             entity_id=str(case.pk), details={"previous_status": previous_status,
                                              "status": case.status,
+                                             "transfer_to_bureau": to_bureau.code if to_bureau else None,
                                              "sla_due_at": case.sla_due_at.isoformat() if case.sla_due_at else None},
         )
     refresh_sla_alerts(case_ids=[case.pk])
     messages.success(request, "Case update recorded in the audit history.")
+    return redirect("complaints:case_detail", pk=case.pk)
+
+
+@login_required
+@permission_required("complaints.manage_case_workflow", raise_exception=True)
+def respond_to_transfer(request, pk):
+    if request.method != "POST":
+        return redirect("complaints:case_list")
+    transfer = get_object_or_404(CaseTransfer.objects.select_related("case", "from_bureau", "to_bureau"), pk=pk)
+    if not _is_overlap_manager(request.user):
+        codes = _bureau_group_codes(request.user)
+        if codes and transfer.to_bureau.code not in codes:
+            return HttpResponseForbidden("Only the receiving Bureau/Cell can accept this transfer.")
+        if not codes:
+            return HttpResponseForbidden("Join the receiving Bureau/Cell group to accept this transfer.")
+    if transfer.state != CaseTransfer.State.PENDING:
+        messages.info(request, "This transfer has already been answered.")
+        return redirect("complaints:case_detail", pk=transfer.case_id)
+    decision = request.POST.get("decision", "").strip()
+    if decision not in {"accept", "reject"}:
+        messages.error(request, "Choose whether to accept or reject the transfer.")
+        return redirect("complaints:case_detail", pk=transfer.case_id)
+    with transaction.atomic():
+        transfer = CaseTransfer.objects.select_for_update().get(pk=transfer.pk)
+        if transfer.state != CaseTransfer.State.PENDING:
+            messages.info(request, "This transfer has already been answered.")
+            return redirect("complaints:case_detail", pk=transfer.case_id)
+        case = ComplaintCase.objects.select_for_update().get(pk=transfer.case_id)
+        transfer.state = (CaseTransfer.State.ACCEPTED if decision == "accept"
+                          else CaseTransfer.State.REJECTED)
+        transfer.responded_by = request.user
+        transfer.responded_at = timezone.now()
+        transfer.save(update_fields=["state", "responded_by", "responded_at"])
+        previous_bureau = case.bureau
+        if decision == "accept":
+            case.bureau = transfer.to_bureau
+        case.status = (CanonicalStatus.UNDER_PROCESS if decision == "accept"
+                       else transfer.previous_status)
+        case.last_action_at = transfer.responded_at
+        case.save(update_fields=["bureau", "status", "last_action_at", "updated_at"])
+        CaseAction.objects.create(
+            case=case, action_type=f"transfer_{decision}", from_bureau=previous_bureau,
+            to_bureau=transfer.to_bureau, actor=request.user,
+            actor_label=request.user.get_full_name() or request.user.get_username(),
+            acted_at=transfer.responded_at, remarks=transfer.note,
+        )
+        AuditLog.objects.create(
+            actor=request.user, action=f"case_transfer_{decision}", entity_type="CaseTransfer",
+            entity_id=str(transfer.pk), details={"case_id": case.pk,
+                "from_bureau": transfer.from_bureau.code, "to_bureau": transfer.to_bureau.code},
+        )
+    refresh_sla_alerts(case_ids=[case.pk])
+    messages.success(request, f"Transfer {decision}ed and added to case history.")
     return redirect("complaints:case_detail", pk=case.pk)
 
 
@@ -282,6 +428,98 @@ def export_cases_csv(request):
                          case.bureau.code, case.category, case.get_status_display(),
                          case.received_at.isoformat() if case.received_at else "",
                          case.sla_due_at.isoformat() if case.sla_due_at else ""])
+    return response
+
+
+@login_required
+@permission_required("complaints.view_complaintcase", raise_exception=True)
+def export_cases_xlsx(request):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Case register"
+    headers = ["Case number", "Source", "Source ID", "Institution", "Permanent ID",
+               "Bureau", "Region", "Category", "Status", "Received", "SLA due"]
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.fill = PatternFill("solid", fgColor="176D62")
+    for case in cases.iterator(chunk_size=500):
+        sheet.append([
+            case.case_number, case.source_system, case.source_case_id,
+            case.institution.name if case.institution else case.raw_institution_name,
+            case.institution.aicte_permanent_id if case.institution else "",
+            case.bureau.code, case.institution.region if case.institution else "",
+            case.category, case.get_status_display(),
+            case.received_at.isoformat() if case.received_at else "",
+            case.sla_due_at.isoformat() if case.sla_due_at else "",
+        ])
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    for column, width in {"A": 20, "B": 16, "C": 22, "D": 38, "E": 18,
+                          "F": 14, "G": 16, "H": 28, "I": 18, "J": 24, "K": 24}.items():
+        sheet.column_dimensions[column].width = width
+    output = BytesIO()
+    workbook.save(output)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="institution-cases.xlsx"'
+    return response
+
+
+@login_required
+@permission_required("complaints.view_complaintcase", raise_exception=True)
+def export_cases_pdf(request):
+    from io import BytesIO
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    cases = _scope_cases(request.user, ComplaintCase.objects.select_related("institution", "bureau"))
+    output = BytesIO()
+    document = SimpleDocTemplate(
+        output, pagesize=landscape(A4), rightMargin=12 * mm, leftMargin=12 * mm,
+        topMargin=12 * mm, bottomMargin=12 * mm,
+    )
+    styles = getSampleStyleSheet()
+    rows = [["Case", "Institution", "Bureau", "Category", "Status", "Received", "SLA due"]]
+    for case in cases.iterator(chunk_size=500):
+        rows.append([
+            case.case_number or case.source_case_id,
+            (case.institution.name if case.institution else case.raw_institution_name)[:48],
+            case.bureau.code, (case.category or "")[:32], case.get_status_display(),
+            case.received_at.strftime("%d %b %Y") if case.received_at else "",
+            case.sla_due_at.strftime("%d %b %Y") if case.sla_due_at else "",
+        ])
+    table = Table(rows, repeatRows=1, colWidths=[34 * mm, 68 * mm, 20 * mm, 43 * mm, 34 * mm, 28 * mm, 28 * mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#176d62")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("LEADING", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d7e1e8")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f6f5")]),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story = [Paragraph("Institution case register", styles["Title"]),
+             Paragraph(f"{cases.count()} cases in the current user's permitted scope", styles["Normal"]),
+             Spacer(1, 8 * mm), table]
+    document.build(story)
+    response = HttpResponse(output.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="institution-cases.pdf"'
     return response
 
 
@@ -356,7 +594,7 @@ def ai_helpdesk(request):
         return JsonResponse({"error": "Please keep your question under 2,000 characters."}, status=400)
 
     try:
-        answer = ask_gemini(message)
+        answer = ask_sarvam(message)
     except AIHelpdeskError as exc:
         return JsonResponse({"error": str(exc)}, status=503)
     return JsonResponse({"answer": answer})

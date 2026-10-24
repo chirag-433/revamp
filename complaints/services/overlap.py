@@ -1,12 +1,14 @@
-from difflib import SequenceMatcher
 from itertools import combinations
+import math
+import re
 
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Exists, F, OuterRef
+from django.db.models import Exists, F, OuterRef, Q
 
 from complaints.models import (
-    AuditLog, CanonicalStatus, CaseLink, ComplaintCase, InstitutionMatchStatus,
+    AuditLog, CanonicalStatus, CaseAction, CaseLink, ComplaintCase,
+    ConflictRule, InstitutionMatchStatus,
 )
 
 
@@ -19,11 +21,25 @@ def case_confidence(case):
 
 
 def compare_case_text(left, right):
-    left_text = " ".join((left.category + " " + left.description).casefold().split())
-    right_text = " ".join((right.category + " " + right.description).casefold().split())
-    if not left_text or not right_text:
+    left_tokens = re.findall(r"\w+", f"{left.category} {left.description}".casefold())
+    right_tokens = re.findall(r"\w+", f"{right.category} {right.description}".casefold())
+    if not left_tokens or not right_tokens:
         return 0.0
-    return SequenceMatcher(None, left_text, right_text).ratio()
+    left_counts = {token: left_tokens.count(token) for token in set(left_tokens)}
+    right_counts = {token: right_tokens.count(token) for token in set(right_tokens)}
+    vocabulary = left_counts.keys() | right_counts.keys()
+    left_vector = {}
+    right_vector = {}
+    for token in vocabulary:
+        in_left = token in left_counts
+        in_right = token in right_counts
+        inverse_document_frequency = math.log(3 / (1 + int(in_left) + int(in_right))) + 1
+        left_vector[token] = left_counts.get(token, 0) * inverse_document_frequency
+        right_vector[token] = right_counts.get(token, 0) * inverse_document_frequency
+    dot = sum(left_vector[token] * right_vector[token] for token in vocabulary)
+    left_norm = math.sqrt(sum(value * value for value in left_vector.values()))
+    right_norm = math.sqrt(sum(value * value for value in right_vector.values()))
+    return dot / (left_norm * right_norm) if left_norm and right_norm else 0.0
 
 
 def overlap_details(case_a, case_b):
@@ -73,30 +89,51 @@ def sync_overlap_suggestions(institution_id=None):
     ).exclude(status=CanonicalStatus.DISPOSED).select_related("institution", "bureau")
     if institution_id is not None:
         cases = cases.filter(institution_id=institution_id)
-    created = []
     by_institution = {}
     for case in cases.order_by("institution_id", "id"):
         by_institution.setdefault(case.institution_id, []).append(case)
+    case_ids = [case.pk for group in by_institution.values() for case in group]
+    existing_links = CaseLink.objects.filter(
+        Q(case_a_id__in=case_ids) | Q(case_b_id__in=case_ids)
+    ).values_list("case_a_id", "case_b_id", "link_type", "review_state") if case_ids else []
+    existing_overlap_pairs = set()
+    confirmed_related_pairs = set()
+    for case_a_id, case_b_id, link_type, review_state in existing_links:
+        pair = (case_a_id, case_b_id)
+        if link_type == CaseLink.LinkType.OVERLAP:
+            existing_overlap_pairs.add(pair)
+        elif (link_type == CaseLink.LinkType.RELATED
+              and review_state == CaseLink.ReviewState.CONFIRMED):
+            confirmed_related_pairs.add(pair)
+
+    pending_links = []
     for institution_cases in by_institution.values():
         for first, second in combinations(institution_cases, 2):
             if first.bureau_id == second.bureau_id:
                 continue
             case_a, case_b = sorted((first, second), key=lambda case: case.pk)
-            if CaseLink.objects.filter(
-                case_a=case_a, case_b=case_b,
-                link_type=CaseLink.LinkType.RELATED,
-                review_state=CaseLink.ReviewState.CONFIRMED,
-            ).exists():
+            pair = (case_a.pk, case_b.pk)
+            if pair in confirmed_related_pairs or pair in existing_overlap_pairs:
                 continue
-            details, confidence = overlap_details(case_a, case_b)
-            link, was_created = CaseLink.objects.get_or_create(
+            details, _confidence = overlap_details(case_a, case_b)
+            pending_links.append(CaseLink(
                 case_a=case_a, case_b=case_b, link_type=CaseLink.LinkType.OVERLAP,
-                defaults={"review_state": CaseLink.ReviewState.SUGGESTED,
-                          "score": None, "explanation": details},
+                review_state=CaseLink.ReviewState.SUGGESTED,
+                score=None, explanation=details,
+            ))
+            existing_overlap_pairs.add(pair)
+    if pending_links:
+        CaseLink.objects.bulk_create(
+            pending_links, batch_size=500, ignore_conflicts=True
             )
-            if was_created:
-                created.append(link)
-    return created
+        pending_pairs = {(link.case_a_id, link.case_b_id) for link in pending_links}
+        return [
+            link for link in CaseLink.objects.filter(
+                link_type=CaseLink.LinkType.OVERLAP,
+            ).filter(Q(case_a_id__in=case_ids) | Q(case_b_id__in=case_ids))
+            if (link.case_a_id, link.case_b_id) in pending_pairs
+        ]
+    return []
 
 
 def suggested_overlap_links():
@@ -143,11 +180,49 @@ def run_full_overlap_scan():
         .annotate(bureau_count=Count("bureau_id", distinct=True))
         .filter(bureau_count__gt=1)
     )
-    stats = {"institutions_scanned": 0, "links_created": 0}
-    for row in institutions:
-        stats["institutions_scanned"] += 1
-        stats["links_created"] += len(sync_overlap_suggestions(row["institution_id"]))
-    return stats
+    institution_count = institutions.count()
+    return {
+        "institutions_scanned": institution_count,
+        "links_created": len(sync_overlap_suggestions()),
+    }
+
+
+@transaction.atomic
+def sync_conflict_suggestions():
+    """Create review suggestions when configured contradictory actions coexist."""
+    created = []
+    for rule in ConflictRule.objects.filter(is_active=True):
+        first_actions = CaseAction.objects.filter(
+            action_type__iexact=rule.action_type_a,
+            case__institution__isnull=False,
+        ).select_related("case__institution", "case__bureau")
+        for first_action in first_actions.iterator(chunk_size=500):
+            first_case = first_action.case
+            other_actions = CaseAction.objects.filter(
+                action_type__iexact=rule.action_type_b,
+                case__institution_id=first_case.institution_id,
+            ).exclude(case__bureau_id=first_case.bureau_id).exclude(
+                case_id=first_case.pk
+            ).select_related("case__institution", "case__bureau")
+            for second_action in other_actions.iterator(chunk_size=500):
+                second_case = second_action.case
+                case_a, case_b = sorted((first_case, second_case), key=lambda case: case.pk)
+                explanation = {
+                    "rule": rule.name,
+                    "reason": rule.explanation,
+                    "actions": [first_action.action_type, second_action.action_type],
+                    "bureaus": [case_a.bureau.code, case_b.bureau.code],
+                    "severity": "High",
+                }
+                link, was_created = CaseLink.objects.get_or_create(
+                    case_a=case_a, case_b=case_b,
+                    link_type=CaseLink.LinkType.CONFLICT,
+                    defaults={"review_state": CaseLink.ReviewState.SUGGESTED,
+                              "explanation": explanation},
+                )
+                if was_created:
+                    created.append(link)
+    return created
 
 
 def review_overlap(link, decision, user=None, note=""):

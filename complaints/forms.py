@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import CanonicalStatus
+from .models import BureauCell, CanonicalStatus
 
 
 class CaseWorkflowForm(forms.Form):
@@ -19,4 +19,14 @@ class CaseWorkflowForm(forms.Form):
         max_length=4000,
         widget=forms.Textarea(attrs={"rows": 4, "placeholder": "Record the action taken and its outcome."}),
     )
+    transfer_to = forms.ModelChoiceField(
+        queryset=BureauCell.objects.filter(is_active=True), required=False,
+        label="Transfer to Bureau/Cell",
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("status") == CanonicalStatus.TRANSFERRED and not cleaned.get("transfer_to"):
+            self.add_error("transfer_to", "Choose the receiving Bureau/Cell for a transfer.")
+        return cleaned
 
