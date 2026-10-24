@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -665,3 +667,23 @@ class Phase3ViewsTests(TestCase):
         self.overlap_link.refresh_from_db()
         self.assertEqual(self.overlap_link.review_state, CaseLink.ReviewState.CONFIRMED)
         self.assertEqual(self.overlap_link.decision_note, "Coordination meeting scheduled between RB and PGRC.")
+
+
+class AIHelpdeskTests(TestCase):
+    def test_helpdesk_uses_sarvam_and_returns_answer(self):
+        with patch("complaints.views.ask_sarvam", return_value="SLA dates flag overdue work."):
+            response = self.client.post(
+                reverse("complaints:ai_helpdesk"),
+                data='{"message": "What is an SLA due date?"}',
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["answer"], "SLA dates flag overdue work.")
+
+    def test_helpdesk_rejects_empty_message(self):
+        response = self.client.post(
+            reverse("complaints:ai_helpdesk"),
+            data='{"message": "  "}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)

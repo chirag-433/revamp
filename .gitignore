@@ -8,6 +8,8 @@ venv/
 # Environment and secrets
 .env
 .env.*
+.envv
+.envv*
 !.env.example
 
 # Local development output

@@ -17,7 +17,7 @@ from .models import (
     InstitutionMatchStatus, SlaAlert, SyntheticMatchLabel,
 )
 from .forms import CaseWorkflowForm
-from .services.ai_helpdesk import AIHelpdeskError, ask_gemini
+from .services.ai_helpdesk import AIHelpdeskError, ask_sarvam
 from .services.csv_import import CSVImportError, import_cases_csv
 from .services.matching import (
     AUTO_THRESHOLD, REVIEW_THRESHOLD, find_candidates, resolve_institution,
@@ -356,7 +356,7 @@ def ai_helpdesk(request):
         return JsonResponse({"error": "Please keep your question under 2,000 characters."}, status=400)
 
     try:
-        answer = ask_gemini(message)
+        answer = ask_sarvam(message)
     except AIHelpdeskError as exc:
         return JsonResponse({"error": str(exc)}, status=503)
     return JsonResponse({"answer": answer})

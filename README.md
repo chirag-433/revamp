@@ -6,7 +6,7 @@ The first milestone is a synthetic-data demo that resolves institutions, surface
 
 ## Project status
 
-- Product scope and delivery sequence: [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md)
+- Product scope and delivery sequence: [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md); requirement mapping and acceptance path: [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md)
 - Implemented slices: foundation, Phase 2 import/tracking, Phase 3 matching/overlap review, Phase 4A–4D coordination, workflow, SLA alerts and reporting, plus Phase 5 demo hardening
 - Phase 4A–4D officer actions and reports require Django login and the relevant permissions
 - Open validation: the exact official problem statement is not yet in the project materials
@@ -27,7 +27,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-The app uses SQLite by default for a quick local start. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. For the floating Casework Guide, copy `.env.example` to `.env` and set `GEMINI_API_KEY`; Django loads `.env` at startup and sends Gemini requests server-side, so the key is never exposed to the browser. Do not commit credentials or real complaint data. If a key has been shared publicly, revoke it and create a replacement.
+The app uses SQLite by default for a quick local start. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. For the floating Disha assistant, copy `.env.example` to `.env` and set `SARVAM_API_KEY`; Django loads `.env` at startup and sends Sarvam chat requests server-side, so the key is never exposed to the browser. Do not commit credentials or real complaint data. If a key has been shared publicly, revoke it and create a replacement.
 
 The dashboard is available at `/`, CSV import at `/import/`, Match Review at `/matches/`, the Overlap Center at `/overlap/`, reports at `/reports/`, sign-in at `/accounts/login/`, and Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response. Workflow updates, coordination decisions/messages, match reviews, and reports require an authenticated account and the relevant permissions. State-changing forms use CSRF-protected POST requests.
 
@@ -54,7 +54,7 @@ CSV imports require an authenticated account with the Django `add_complaintcase`
 
 ## Delivery status
 
-- **Phase 0 — requirements:** draft scope is recorded in [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md); the complete official problem statement is still needed to validate exact field names and workflow requirements.
+- **Phase 0 — requirements:** prototype scope, traceability matrix, assumptions, and acceptance path are recorded in [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md) and [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md). The complete official problem statement is still needed for final requirement sign-off.
 - **Phase 1 — foundation:** Django app, initial schema migration, local SQLite/PostgreSQL configuration, repeatable synthetic seed command, and local startup steps are in place.
 - **Phase 2 — import and tracking:** CSV validation/import, canonical status mapping, duplicate-safe updates, case list/detail, and institution profiles are in place.
 - **Phase 3 — matching and review:** 3-tier fuzzy institution resolution, a manual match review queue, cross-Bureau overlap detection, and the Phase 3 overlap list remain available.
