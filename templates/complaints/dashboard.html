@@ -5,7 +5,7 @@
 {% block content %}
 <section class="dashboard-hero" aria-labelledby="dashboard-title">
   <div class="hero-copy">
-    <p class="hero-kicker"><span class="live-dot"></span> ONE COORDINATED VIEW <span class="hero-divider">/</span> DEMO WORKSPACE</p>
+    <p class="hero-kicker"><span class="live-dot"></span> ONE COORDINATED VIEW</p>
     <h1 id="dashboard-title">Every case deserves<br>a clear path forward.</h1>
     <p>Bring institution complaints into one place, see where attention is needed, and keep follow-up visible across every bureau.</p>
     <div class="hero-actions"><a class="button hero-primary" href="{% url 'complaints:case_list' %}">Review case register <span aria-hidden="true">→</span></a><a class="hero-secondary" href="{% url 'complaints:import' %}">Import case data <span aria-hidden="true">↗</span></a></div>
@@ -24,7 +24,6 @@
     <div class="metric-top"><span>All cases</span><span class="metric-index">01 / REGISTER</span></div>
     <strong>{{ total_cases|stringformat:"02d" }}</strong>
     <div class="metric-foot"><span>Records in the register</span><a href="{% url 'complaints:case_list' %}">Open register <span aria-hidden="true">↗</span></a></div>
-    <span class="metric-watermark" aria-hidden="true">C</span>
   </article>
   <article class="workload-card">
     <div class="metric-top"><span>Open workload</span><span class="metric-dot dot-blue"></span></div>

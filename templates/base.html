@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="scroll-progress" data-scroll-progress aria-hidden="true"></div>
-  <div class="institution-ribbon institution-ribbon-government"><span class="govt-emblem"><img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="State Emblem of India"></span><span class="govt-identity"><strong>Ministry of Education</strong><small>Government of India</small></span><span class="ribbon-note">DEMO WORKSPACE</span></div>
+  <div class="institution-ribbon institution-ribbon-government"><span class="govt-emblem"><img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="State Emblem of India"></span><span class="govt-identity"><strong>Ministry of Education</strong><small>Government of India</small></span></div>
   <header class="topbar">
     <a class="brand" href="{% url 'complaints:dashboard' %}"><span class="brand-mark" aria-hidden="true"><img src="{% static 'complaints/logo.png' %}" alt="AICTE SAKSHAM Emblem" class="brand-logo-img"></span><span class="brand-copy"><strong>SAKSHAM</strong><small>AICTE Institution Grievance Monitor</small></span></a>
     <button class="nav-toggle" type="button" data-nav-toggle aria-controls="main-navigation" aria-expanded="false"><span></span><span></span><span></span><span class="sr-only">Toggle navigation</span></button>
@@ -47,10 +47,10 @@
         <a class="footer-feedback" href="{% url 'complaints:case_list' %}">Share feedback <span aria-hidden="true">→</span></a>
       </section>
       <section class="footer-ministry" aria-label="Government of India">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="State Emblem of India"><div><strong>Ministry of Education</strong><span>Government of India</span><small>Demonstration workspace</small></div>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="State Emblem of India"><div><strong>Ministry of Education</strong><span>Government of India</span></div>
       </section>
     </div>
-    <div class="footer-bottom"><span>© {% now "Y" %} SAKSHAM · AICTE Institution Grievance Monitor</span><span>Built with synthetic demonstration data only</span></div>
+    <div class="footer-bottom"><span>© {% now "Y" %} SAKSHAM · AICTE Institution Grievance Monitor</span></div>
   </footer>
   <button class="back-to-top" type="button" data-back-to-top aria-label="Back to top">↑</button>
   <div class="cursor-overlay" aria-hidden="true"><span class="cursor-center"></span><span class="cursor-label"></span></div>

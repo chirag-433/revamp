@@ -441,3 +441,14 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 .auth-admin-sublink a{font-size:11px;color:#84948a;font-weight:500}
 @media(max-width:600px){.form-row-2col{grid-template-columns:1fr}.auth-card{border-radius:0;box-shadow:none;border:none}.auth-card-container{padding:12px 0}}
 
+
+/* Footer layout corrections */
+.casework-footer{display:block!important}
+.footer-brand>div{min-width:0}
+.casework-footer .footer-bottom span{color:rgba(255,255,255,.82);font-weight:650;letter-spacing:.03em}
+@media(max-width:1050px){.footer-brand strong{font-size:19px;letter-spacing:.06em}}
+
+
+/* Footer and dashboard cleanup */
+.footer-main>section,.footer-links{border-right:0!important}
+.casework-footer .footer-bottom span{color:#cce8d4!important}
