@@ -27,6 +27,8 @@ python manage.py runserver
 
 The app uses SQLite by default for a quick local start. `.env.example` is a reference file; Django does not load it automatically. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. Do not commit credentials or real complaint data.
 
+The floating Casework Guide help desk uses Gemini through a server-side request. Set `GEMINI_API_KEY` in the shell before launching; the key is intentionally never exposed to the browser. Do not paste API keys into source files or commit them. If a key has been shared publicly, revoke it and create a replacement.
+
 The case register is available at `/`, CSV import at `/import/`, and the Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response.
 
 The `seed_demo` command creates or refreshes a small set of clearly synthetic institutions, Bureaus/Cells, status mappings, cases, and initial history. It is safe to run more than once; it does not delete existing data. The sample import file is [`static/sample_data/demo_cases.csv`](static/sample_data/demo_cases.csv).
@@ -54,4 +56,3 @@ This first import screen is intended for a local synthetic-data prototype. It is
 - An overlap is a coordination suggestion, never an automatic case merge.
 - Exact Permanent ID matches are deterministic; uncertain name matches require review.
 - Do not publish measured accuracy claims until they are calculated from the labelled dataset.
-

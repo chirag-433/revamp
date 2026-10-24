@@ -10,5 +10,5 @@ urlpatterns = [
     path("cases/<int:pk>/", views.case_detail, name="case_detail"),
     path("institutions/<int:pk>/", views.institution_detail, name="institution_detail"),
     path("import/", views.import_cases, name="import"),
+    path("api/ai-helpdesk/", views.ai_helpdesk, name="ai_helpdesk"),
 ]
-

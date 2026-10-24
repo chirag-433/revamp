@@ -2,6 +2,10 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
