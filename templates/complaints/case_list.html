@@ -8,6 +8,14 @@
 <section class="summary-grid" aria-label="Case totals">
   <div class="summary-card"><span>Total cases</span><strong>{{ total_cases }}</strong></div>
   <div class="summary-card"><span>Awaiting institution match</span><strong>{{ unmapped_institutions }}</strong></div>
+  <div class="summary-card">
+    <span>Fuzzy Match Review</span>
+    <strong><a href="{% url 'complaints:match_review_queue' %}" class="strong-link">{{ review_queue_count }}</a></strong>
+  </div>
+  <div class="summary-card highlight-card">
+    <span>Cross-Bureau Overlaps</span>
+    <strong><a href="{% url 'complaints:overlap_list' %}" class="strong-link">{{ pending_overlaps }}</a></strong>
+  </div>
 </section>
 <form class="filter-panel" method="get">
   <label>Search<input type="search" name="q" value="{{ filters.q }}" placeholder="Case number or institution"></label>

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Match Review Queue · Institution Case Tracker{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">PHASE 3 · INSTITUTION RESOLUTION</p>
+    <h1>Match Review Queue</h1>
+    <p class="muted">Review fuzzy-matched institutions that require manual confirmation before linking.</p>
+  </div>
+  <a class="button" href="{% url 'complaints:case_list' %}">← Back to Cases</a>
+</div>
+
+<section class="summary-grid" aria-label="Review queue stats">
+  <div class="summary-card">
+    <span>Awaiting Review</span>
+    <strong>{{ page.paginator.count }}</strong>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Pending Match Suggestions</h2>
+    <span class="muted">{{ page.paginator.count }} case{{ page.paginator.count|pluralize }}</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Case</th>
+          <th>Raw Input (from Complaint)</th>
+          <th>Suggested Institution</th>
+          <th>Confidence</th>
+          <th>Bureau / Cell</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in page %}
+        <tr>
+          <td>
+            <a class="strong-link" href="{% url 'complaints:case_detail' case.pk %}">
+              {{ case.case_number|default:case.source_case_id }}
+            </a>
+            <small>{{ case.source_system }} · {{ case.source_case_id }}</small>
+          </td>
+          <td>
+            <strong>{{ case.raw_institution_name|default:"(Empty raw name)" }}</strong>
+            {% if case.raw_institution_id %}<small>AICTE ID: {{ case.raw_institution_id }}</small>{% endif %}
+            {% if case.raw_address %}<small>{{ case.raw_address }}</small>{% endif %}
+          </td>
+          <td>
+            {% if case.institution %}
+              <a href="{% url 'complaints:institution_detail' case.institution_id %}">
+                {{ case.institution.name }}
+              </a>
+              <small>ID: {{ case.institution.aicte_permanent_id|default:"None" }} · {{ case.institution.district }}, {{ case.institution.state }}</small>
+            {% else %}
+              <span class="muted">None suggested</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if case.match_confidence %}
+              <span class="confidence-badge {% if case.match_confidence >= 0.85 %}confidence-high{% elif case.match_confidence >= 0.70 %}confidence-med{% else %}confidence-low{% endif %}">
+                {{ case.match_confidence|floatformat:2 }}
+              </span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ case.bureau.code }}
+            <small>{{ case.bureau.name }}</small>
+          </td>
+          <td style="text-align: right;">
+            <div class="action-buttons">
+              <form method="post" action="{% url 'complaints:match_review_action' case.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="confirm">
+                <button type="submit" class="button button-sm button-success" title="Confirm match">Confirm</button>
+              </form>
+              <form method="post" action="{% url 'complaints:match_review_action' case.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="reject">
+                <button type="submit" class="button button-sm button-danger" title="Reject suggestion">Reject</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty">No pending fuzzy match suggestions in the queue. All cases are either confirmed, auto-matched, or unresolved.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+  <div class="pagination">
+    {% if page.has_previous %}
+      <a href="?page={{ page.previous_page_number }}">← Previous</a>
+    {% else %}
+      <span></span>
+    {% endif %}
+    <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+      <a href="?page={{ page.next_page_number }}">Next →</a>
+    {% else %}
+      <span></span>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

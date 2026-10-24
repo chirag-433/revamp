@@ -7,7 +7,7 @@ The first milestone is a synthetic-data demo that resolves institutions, surface
 ## Project status
 
 - Product scope and delivery sequence: [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md)
-- Current slice: foundation and Phase 2 case import/tracking
+- Current slice: Phase 3 matching suggestions and cross-Bureau overlap review
 - Open validation: the exact official problem statement is not yet in the project materials
 
 ## Local setup
@@ -29,9 +29,9 @@ The app uses SQLite by default for a quick local start. `.env.example` is a refe
 
 The floating Casework Guide help desk uses Gemini through a server-side request. Set `GEMINI_API_KEY` in the shell before launching; the key is intentionally never exposed to the browser. Do not paste API keys into source files or commit them. If a key has been shared publicly, revoke it and create a replacement.
 
-The case register is available at `/`, CSV import at `/import/`, and the Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response.
+The case register is available at `/`, CSV import at `/import/`, Match Review Queue at `/matches/`, Cross-Bureau Overlaps at `/overlaps/`, and the Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response.
 
-The `seed_demo` command creates or refreshes a small set of clearly synthetic institutions, Bureaus/Cells, status mappings, cases, and initial history. It is safe to run more than once; it does not delete existing data. The sample import file is [`static/sample_data/demo_cases.csv`](static/sample_data/demo_cases.csv).
+The `seed_demo` command creates or refreshes synthetic institutions, Bureaus/Cells, status mappings, cases, and initial history with noise and planted overlaps. It supports configurable flags (`--institutions`, `--cases-per-institution`, `--overlap-pct`). Run `python manage.py run_matching` to batch resolve unmatched institutions and detect overlaps.
 
 ## CSV import contract
 
@@ -48,7 +48,8 @@ This first import screen is intended for a local synthetic-data prototype. It is
 - **Phase 0 — requirements:** draft scope is recorded in [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md); the complete official problem statement is still needed to validate exact field names and workflow requirements.
 - **Phase 1 — foundation:** Django app, initial schema migration, local SQLite/PostgreSQL configuration, repeatable synthetic seed command, and local startup steps are in place.
 - **Phase 2 — import and tracking:** CSV validation/import, canonical status mapping, duplicate-safe updates, case list/detail, and institution profiles are in place.
-- **Next:** Phase 3 matching suggestions and cross-Bureau overlap review. No fuzzy matching, alerts, or officer case-link decisions are implemented yet.
+- **Phase 3 — matching & overlap review:** 3-tier fuzzy institution resolution, officer match review queue with confirm/reject actions, cross-bureau overlap detection, side-by-side comparison screen, and coordination decisions with audit logging are implemented and tested.
+- **Next:** Phase 4 analytics dashboard, metrics (precision/recall on labelled ground truth), and alert notification triggers.
 
 ## Scope guardrails
 
