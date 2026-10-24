@@ -28,6 +28,7 @@ from .services.overlap import (
     detect_overlaps_for_case, suggested_overlap_links, sync_overlap_suggestions,
 )
 from .services.sla import refresh_sla_alerts
+from .services.priority import case_priority
 
 
 def _bureau_group_codes(user):
@@ -103,6 +104,12 @@ def dashboard(request):
         | Q(institution__isnull=True)
         | (Q(sla_due_at__lt=timezone.now()) & ~Q(status=CanonicalStatus.DISPOSED))
     ).order_by("sla_due_at", "-received_at")[:6]
+    priority_cases = list(cases.exclude(status=CanonicalStatus.DISPOSED).order_by(
+        "sla_due_at", "-received_at"
+    ))
+    for case in priority_cases:
+        case.priority_score, case.priority_label, case.priority_reasons = case_priority(case)
+    priority_cases = sorted(priority_cases, key=lambda case: case.priority_score, reverse=True)[:5]
     bureau_codes = _bureau_group_codes(request.user)
     bureau_rows = BureauCell.objects.filter(is_active=True)
     if bureau_codes and not _is_overlap_manager(request.user):
@@ -114,6 +121,9 @@ def dashboard(request):
     max_load = max((bureau.case_count for bureau in bureau_load), default=1)
     for bureau in bureau_load:
         bureau.load_percent = round(bureau.case_count / max_load * 100)
+    state_load = list(cases.exclude(institution__state="").values(
+        "institution__state"
+    ).annotate(case_count=Count("id")).order_by("-case_count", "institution__state")[:6])
     can_review = request.user.is_authenticated and request.user.has_perm("complaints.view_caselink")
     if can_review and request.user.has_perm("complaints.add_caselink"):
         sync_overlap_suggestions()
@@ -149,8 +159,10 @@ def dashboard(request):
             review_state=CaseLink.ReviewState.SUGGESTED,
         )).count(),
         "attention_cases": needs_attention,
+        "priority_cases": priority_cases,
         "recent_cases": cases.order_by("-received_at", "-id")[:6],
         "bureau_load": bureau_load,
+        "state_load": state_load,
         "status_rows": [(label, cases.filter(status=value).count(), value)
                         for value, label in CanonicalStatus.choices],
         "overlap_links": overlap_links,
@@ -166,7 +178,7 @@ def case_list(request):
     filters = {
         name: request.GET.get(name, "").strip()
         for name in ("institution", "permanent_id", "case_id", "bureau", "region",
-                     "category", "status", "date_from", "date_to", "sla")
+                     "category", "state", "status", "date_from", "date_to", "sla")
     }
     query = request.GET.get("q", "").strip()
     if query:
@@ -193,6 +205,8 @@ def case_list(request):
         )
     if filters["region"]:
         cases = cases.filter(institution__region__iexact=filters["region"])
+    if filters["state"]:
+        cases = cases.filter(institution__state__iexact=filters["state"])
     if filters["category"]:
         cases = cases.filter(category__iexact=filters["category"])
     start_date = parse_date(filters["date_from"]) if filters["date_from"] else None
@@ -219,6 +233,8 @@ def case_list(request):
                and not _is_overlap_manager(request.user) else {})),
         "regions": Institution.objects.filter(is_active=True).exclude(region="").values_list(
             "region", flat=True).distinct().order_by("region"),
+        "states": Institution.objects.filter(is_active=True).exclude(state="").values_list(
+            "state", flat=True).distinct().order_by("state"),
         "categories": ComplaintCase.objects.exclude(category="").values_list(
             "category", flat=True).distinct().order_by("category"),
         "statuses": CanonicalStatus.choices,

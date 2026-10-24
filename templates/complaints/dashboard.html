@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Overview · Casework{% endblock %}
 {% block main_class %}dashboard-container{% endblock %}
 {% block content %}
@@ -44,6 +45,30 @@
     <div class="metric-top"><span>SLA due soon</span><span class="metric-dot dot-amber"></span></div>
     <strong>{{ due_soon_cases|stringformat:"02d" }}</strong>
     <div class="metric-foot"><span>Due within 3 days</span><a href="{% url 'complaints:case_list' %}?sla=due_soon">Review queue <span aria-hidden="true">↗</span></a></div>
+  </article>
+</section>
+
+<section class="intelligence-grid" aria-label="Interactive case intelligence">
+  <article class="surface priority-panel">
+    <div class="section-heading"><div><p class="eyebrow">CASE INTELLIGENCE</p><h2>Priority queue</h2><p class="muted">An explainable score helps officers decide what to open first.</p></div><span class="priority-legend">LIVE SIGNALS</span></div>
+    <div class="priority-list">
+      {% for case in priority_cases %}
+      <a class="priority-row" href="{% url 'complaints:case_detail' case.pk %}">
+        <span class="priority-score priority-{{ case.priority_label|lower }}">{{ case.priority_score }}</span>
+        <span><strong>{{ case.case_number|default:case.source_case_id }}</strong><small>{{ case.institution.name|default:case.raw_institution_name|default:"Institution not identified" }} · {{ case.bureau.code }}</small></span>
+        <span class="priority-copy"><b>{{ case.priority_label }}</b><small>{{ case.priority_reasons|join:" · "|default:"No urgent signals" }}</small></span>
+        <span aria-hidden="true">→</span>
+      </a>
+      {% empty %}<p class="quiet-empty">Cases will appear here when records are imported.</p>{% endfor %}
+    </div>
+    <p class="priority-note">Scores combine escalation, SLA risk, unresolved identity and inactivity. They support review; they never change a case automatically.</p>
+  </article>
+  <article class="surface state-panel">
+    <div class="section-heading"><div><p class="eyebrow">GEOGRAPHIC PULSE</p><h2>Explore by state</h2><p class="muted">Select a state to open its scoped case register.</p></div><button class="text-button" type="button" data-reset-state>Reset</button></div>
+    <div class="state-chips" role="group" aria-label="Filter cases by state">
+      {% for row in state_load %}<button type="button" data-state="{{ row.institution__state }}" data-count="{{ row.case_count }}" data-link="{% url 'complaints:case_list' %}?state={{ row.institution__state|urlencode }}" aria-pressed="false"><span>{{ row.institution__state }}</span><b>{{ row.case_count }}</b></button>{% empty %}<p class="quiet-empty">State data will appear when linked institution records include a state.</p>{% endfor %}
+    </div>
+    <div class="state-selection" data-state-summary>Select a state to preview its workload and jump straight into the filtered register.</div>
   </article>
 </section>
 
@@ -132,4 +157,5 @@
   </table></div>
 </section>
 {% endblock %}
+{% block extra_scripts %}<script src="{% static 'complaints/dashboard.js' %}" defer></script>{% endblock %}
 

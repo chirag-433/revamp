@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -13,6 +14,49 @@ from .models import (
     InstitutionMatchStatus, ConflictRule, SyntheticLinkLabel, SlaAlert,
 )
 from .services.overlap import sync_conflict_suggestions, sync_overlap_suggestions
+from .services.priority import case_priority
+from django.utils import timezone
+
+
+class CasePriorityTests(TestCase):
+    def setUp(self):
+        self.bureau = BureauCell.objects.create(code="RB", name="Regional Bureau")
+
+    def make_case(self, **overrides):
+        defaults = {
+            "source_system": "TEST", "source_case_id": "priority-1",
+            "bureau": self.bureau, "status": CanonicalStatus.PENDING,
+        }
+        defaults.update(overrides)
+        return ComplaintCase.objects.create(**defaults)
+
+    def test_priority_explains_combined_operational_risk(self):
+        now = timezone.now()
+        case = self.make_case(
+            status=CanonicalStatus.ESCALATED,
+            sla_due_at=now - timedelta(hours=1),
+        )
+        score, label, reasons = case_priority(case, now=now)
+        self.assertEqual(score, 95)
+        self.assertEqual(label, "Critical")
+        self.assertEqual(reasons, ["Escalated", "SLA overdue", "Institution unresolved"])
+
+    def test_disposed_cases_are_not_prioritised(self):
+        score, label, reasons = case_priority(self.make_case(status=CanonicalStatus.DISPOSED))
+        self.assertEqual((score, label, reasons), (0, "Resolved", []))
+
+    def test_dashboard_exposes_priority_and_state_explorer(self):
+        institution = Institution.objects.create(name="State Institute", state="Karnataka")
+        case = self.make_case(
+            source_case_id="priority-dashboard", institution=institution,
+            sla_due_at=timezone.now() - timedelta(hours=1),
+        )
+        with self.settings(DEMO_PUBLIC_READONLY=True):
+            response = self.client.get(reverse("complaints:dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Priority queue")
+        self.assertContains(response, "Karnataka")
+        self.assertContains(response, str(case.pk))
 
 
 class OverlapCenterTests(TestCase):
