@@ -26,7 +26,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-The app uses SQLite by default for a quick local start. `.env.example` is a reference file; Django does not load it automatically. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. Do not commit credentials or real complaint data.
+The app uses SQLite by default for a quick local start. Set the PostgreSQL variables in your shell before launching to use PostgreSQL. For the floating Casework Guide, copy `.env.example` to `.env` and set `GEMINI_API_KEY`; Django loads `.env` at startup and sends Gemini requests server-side, so the key is never exposed to the browser. Do not commit credentials or real complaint data. If a key has been shared publicly, revoke it and create a replacement.
 
 The dashboard is available at `/`, CSV import at `/import/`, Match Review at `/matches/`, Phase 3 overlap list at `/overlaps/`, the Phase 4A Overlap Center at `/overlap/`, sign-in at `/accounts/login/`, and Django admin at `/admin/`. Case and institution detail pages are linked from the register. `/health/` provides a small process health response. Phase 4A decisions, messages, manual links, and institution-match reviews require an authenticated account and CSRF-protected POST requests.
 

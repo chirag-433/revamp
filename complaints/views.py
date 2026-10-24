@@ -1,8 +1,10 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -12,6 +14,7 @@ from .models import (
     CoordinationMessage, CoordinationNotification, Institution,
     InstitutionMatchStatus,
 )
+from .services.ai_helpdesk import AIHelpdeskError, ask_gemini
 from .services.csv_import import CSVImportError, import_cases_csv
 from .services.matching import resolve_institution
 from .services.overlap import (
@@ -193,6 +196,28 @@ def import_cases(request):
             f"{overlap_count} overlaps detected.")
         return render(request, "complaints/import_result.html", {"result": result, "match_count": match_count, "overlap_count": overlap_count})
     return render(request, "complaints/import.html")
+
+
+# Disha AI help desk endpoint.
+def ai_helpdesk(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
+    try:
+        payload = json.loads(request.body)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Send a valid JSON message."}, status=400)
+
+    message = str(payload.get("message", "")).strip()
+    if not message:
+        return JsonResponse({"error": "Please enter a question."}, status=400)
+    if len(message) > 2000:
+        return JsonResponse({"error": "Please keep your question under 2,000 characters."}, status=400)
+
+    try:
+        answer = ask_gemini(message)
+    except AIHelpdeskError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    return JsonResponse({"answer": answer})
 
 
 @login_required

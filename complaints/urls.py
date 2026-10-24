@@ -22,4 +22,5 @@ urlpatterns = [
     path("overlap/<int:pk>/messages/", views.post_coordination_message, name="post_coordination_message"),
     path("overlap/institution-matches/<int:pk>/", views.review_institution_match, name="review_institution_match"),
     path("coordination/notifications/", views.coordination_notifications, name="coordination_notifications"),
+    path("api/ai-helpdesk/", views.ai_helpdesk, name="ai_helpdesk"),
 ]
