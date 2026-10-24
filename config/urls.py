@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 
 def health(request):
@@ -12,6 +13,7 @@ from complaints import views as complaints_views
 
 
 urlpatterns = [
+    path("favicon.ico", RedirectView.as_view(url="/static/complaints/favicon.ico", permanent=True)),
     path("health/", health, name="health"),
     path("admin/", admin.site.urls),
     path("accounts/login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
