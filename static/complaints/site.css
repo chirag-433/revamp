@@ -103,21 +103,22 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 }
 .helpdesk-fab{
   display:grid;place-items:center;
-  width:60px;height:60px;
+  width:74px;height:74px;
   padding:0;border:0;border-radius:50%;
-  background:none;
+  background:#fff;
   cursor:pointer;
-  box-shadow:0 6px 24px rgba(18,61,53,.38),0 2px 8px rgba(0,0,0,.14);
+  box-shadow:0 10px 28px rgba(18,61,53,.30),0 3px 9px rgba(0,0,0,.14);
   transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s ease;
   animation:hd-bounce 3.5s ease-in-out 2s 3;
 }
+.helpdesk-fab svg{display:block;width:74px;height:74px}
 .helpdesk-fab:hover{
   transform:translateY(-4px) scale(1.07);
   box-shadow:0 14px 36px rgba(18,61,53,.48),0 4px 12px rgba(0,0,0,.16);
 }
 .helpdesk-fab:active{transform:translateY(-1px) scale(.98)}
 .helpdesk-fab-label{
-  display:block;
+  display:none;
   padding:4px 11px;
   border-radius:20px;
   background:linear-gradient(135deg,#123d35,#246348);
@@ -128,6 +129,21 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
   white-space:nowrap;
   pointer-events:none;
 }
+
+/* Government identity in the utility strip. */
+.institution-ribbon-government{
+  height:52px;
+  gap:10px;
+  background:#e0f2e4;
+  color:#1d352b;
+  letter-spacing:0;
+}
+.govt-emblem{display:grid;place-items:center;width:31px;height:42px;flex:0 0 auto}
+.govt-emblem img{display:block;max-width:100%;max-height:100%;filter:sepia(.28) saturate(.7) hue-rotate(330deg)}
+.govt-identity{display:grid;gap:1px;line-height:1.1}
+.govt-identity strong{font-size:15px;font-weight:800;letter-spacing:.01em}
+.govt-identity small{color:#52705f;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.institution-ribbon-government .ribbon-note{margin-left:auto}
 /* Hide old pill launcher styles if any */
 .helpdesk-launcher:not(.helpdesk-fab){display:none}
 
@@ -306,7 +322,42 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 
 /* ── Mobile ── */
 @media(max-width:650px){
+  .institution-ribbon-government{height:43px;padding:0 14px}
+  .institution-ribbon-government .govt-emblem{width:25px;height:34px}
+  .institution-ribbon-government .govt-identity strong{font-size:12px}
+  .institution-ribbon-government .govt-identity small{font-size:7px}
   .helpdesk{right:15px;bottom:15px}
-  .helpdesk-fab{width:52px;height:52px}
+  .helpdesk-fab,.helpdesk-fab svg{width:62px;height:62px}
   .helpdesk-panel{right:-1px;bottom:100px;height:min(500px,calc(100vh - 90px));width:calc(100vw - 30px)}
 }
+
+/* Keep the external emblem SVG from contributing its intrinsic document size. */
+.institution-ribbon.institution-ribbon-government{
+  display:flex!important;
+  align-items:center!important;
+  height:52px!important;
+  min-height:52px!important;
+  max-height:52px!important;
+  overflow:hidden;
+}
+.institution-ribbon-government .govt-emblem{
+  display:block!important;
+  width:27px!important;
+  height:38px!important;
+  min-width:27px!important;
+  min-height:38px!important;
+  max-height:38px!important;
+  overflow:hidden;
+  line-height:0;
+}
+.institution-ribbon-government .govt-emblem img{
+  display:block!important;
+  width:27px!important;
+  height:38px!important;
+  max-width:27px!important;
+  max-height:38px!important;
+  object-fit:contain;
+}
+.institution-ribbon-government .govt-identity{display:block!important;line-height:1!important}
+.institution-ribbon-government .govt-identity strong{display:block!important;font-size:15px!important;line-height:18px!important}
+.institution-ribbon-government .govt-identity small{display:block!important;font-size:9px!important;line-height:12px!important}
