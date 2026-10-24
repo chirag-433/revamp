@@ -3,6 +3,30 @@
 {% block content %}
 <p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / Institution</p>
 <div class="page-heading"><div><p class="eyebrow">INSTITUTION PROFILE</p><h1>{{ institution.name }}</h1><p class="muted">{{ institution.aicte_permanent_id|default:"No Permanent ID recorded" }}</p></div></div>
+
+{% if has_overlap %}
+<section class="panel alert-panel alert-warning">
+  <div class="alert-icon">⚠️</div>
+  <div class="alert-content">
+    <h3>Multi-Bureau Overlap Detected</h3>
+    <p>This institution currently has open grievance cases in multiple Bureaus/Cells:
+      {% for code in active_bureaus %}<span class="bureau-pill">{{ code }}</span>{% endfor %}
+    </p>
+    {% if overlap_links %}
+      <p>Pending overlap coordination suggestions:</p>
+      <ul class="overlap-list">
+        {% for link in overlap_links %}
+          <li>
+            Between <strong>{{ link.case_a.bureau.code }}</strong> (Case {{ link.case_a.case_number|default:link.case_a.source_case_id }})
+            and <strong>{{ link.case_b.bureau.code }}</strong> (Case {{ link.case_b.case_number|default:link.case_b.source_case_id }})
+            <a class="button button-sm" href="{% url 'complaints:overlap_detail' link.pk %}">Review Overlap →</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 <section class="panel"><div class="panel-heading"><h2>Institution details</h2></div><dl class="details">
   <dt>District</dt><dd>{{ institution.district|default:"—" }}</dd><dt>State</dt><dd>{{ institution.state|default:"—" }}</dd>
   <dt>Region</dt><dd>{{ institution.region|default:"—" }}</dd><dt>Address</dt><dd>{{ institution.address|default:"—"|linebreaksbr }}</dd>
