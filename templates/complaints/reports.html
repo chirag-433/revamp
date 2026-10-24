@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Reports · Casework{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">PHASE 4D · MEASURED OPERATIONS</p><h1>Reports</h1><p class="muted">Operational workload and a measured matching benchmark from labelled synthetic records.</p></div><a class="button primary" href="{% url 'complaints:export_cases_csv' %}">Export case register</a></div>
+<section class="summary-grid report-metrics" aria-label="Operational metrics">
+  <article class="summary-card"><span>Cases in scope</span><strong>{{ total_cases }}</strong></article>
+  <article class="summary-card"><span>Open workload</span><strong>{{ open_cases }}</strong></article>
+  <article class="summary-card"><span>Due in 3 days</span><strong>{{ due_soon_cases }}</strong></article>
+  <article class="summary-card highlight-card"><span>Overdue</span><strong>{{ overdue_cases }}</strong></article>
+</section>
+<section class="panel benchmark-panel">
+  <div class="panel-heading"><div><p class="eyebrow">SYNTHETIC MATCHING BENCHMARK</p><h2>Precision and recall</h2></div><span class="data-badge"><span></span> LABELLED DATA</span></div>
+  {% if evaluated %}
+  <p>Measured over {{ evaluated }} labelled case{{ evaluated|pluralize }}. The expected institution is stored separately from the case name used as matcher input.</p>
+  <div class="summary-grid"><article class="summary-card"><span>Precision</span><strong>{% if precision is not None %}{{ precision }}%{% else %}—{% endif %}</strong><small>Correct matches ÷ predicted matches</small></article><article class="summary-card"><span>Recall</span><strong>{% if recall is not None %}{{ recall }}%{% else %}—{% endif %}</strong><small>Correct matches ÷ expected matches</small></article><article class="summary-card"><span>Correct predictions</span><strong>{{ true_positives }}</strong></article><article class="summary-card"><span>Thresholds</span><strong>{{ review_threshold }} / {{ auto_threshold }}</strong><small>Review / automatic</small></article></div>
+  {% else %}
+  <div class="queue-empty"><span aria-hidden="true">i</span><div><strong>No benchmark labels yet</strong><p>Run <code>python manage.py seed_match_benchmark</code> to create a reproducible synthetic benchmark. No accuracy figure is shown until labels exist.</p></div></div>
+  {% endif %}
+</section>
+{% endblock %}

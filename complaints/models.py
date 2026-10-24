@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 
 
 class CanonicalStatus(models.TextChoices):
@@ -170,6 +171,9 @@ class ComplaintCase(models.Model):
                 fields=["institution", "status"], name="complaints__institut_stat_idx"
             ),
         ]
+        permissions = [
+            ("manage_case_workflow", "Can record case workflow actions"),
+        ]
         ordering = ["-received_at", "-id"]
 
     @property
@@ -216,6 +220,51 @@ class CaseAction(models.Model):
 
     def __str__(self):
         return f"{self.action_type} - {self.case}"
+
+
+class SlaAlert(models.Model):
+    class AlertType(models.TextChoices):
+        DUE_SOON = "due_soon", "Due soon"
+        OVERDUE = "overdue", "Overdue"
+
+    case = models.ForeignKey(
+        ComplaintCase, on_delete=models.CASCADE, related_name="sla_alerts"
+    )
+    alert_type = models.CharField(max_length=16, choices=AlertType.choices)
+    opened_at = models.DateTimeField(default=timezone.now, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["resolved_at", "opened_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case", "alert_type"],
+                condition=Q(resolved_at__isnull=True),
+                name="unique_active_sla_alert_per_type",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_alert_type_display()} — {self.case}"
+
+
+class SyntheticMatchLabel(models.Model):
+    """Ground-truth label kept separate from matcher inputs for benchmark runs."""
+
+    case = models.OneToOneField(
+        ComplaintCase, on_delete=models.CASCADE, related_name="match_label"
+    )
+    expected_institution = models.ForeignKey(
+        Institution, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="synthetic_match_labels",
+    )
+    dataset = models.CharField(max_length=80, default="demo-match-v1", db_index=True)
+
+    class Meta:
+        ordering = ["dataset", "case_id"]
+
+    def __str__(self):
+        return f"{self.dataset}: {self.case}"
 
 
 class CaseLink(models.Model):

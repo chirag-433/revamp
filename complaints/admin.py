@@ -10,6 +10,8 @@ from .models import (
     CoordinationNotification,
     Institution,
     InstitutionAlias,
+    SlaAlert,
+    SyntheticMatchLabel,
     StatusMap,
 )
 
@@ -61,6 +63,48 @@ class CaseActionAdmin(admin.ModelAdmin):
     list_filter = ("action_type", "from_bureau", "to_bureau")
     search_fields = ("case__case_number", "remarks", "actor_label")
     date_hierarchy = "acted_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SlaAlert)
+class SlaAlertAdmin(admin.ModelAdmin):
+    list_display = ("case", "alert_type", "opened_at", "resolved_at")
+    list_filter = ("alert_type", "resolved_at")
+    search_fields = ("case__case_number", "case__source_case_id")
+    readonly_fields = ("case", "alert_type", "opened_at", "resolved_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SyntheticMatchLabel)
+class SyntheticMatchLabelAdmin(admin.ModelAdmin):
+    list_display = ("case", "expected_institution", "dataset")
+    list_filter = ("dataset",)
+    search_fields = ("case__case_number", "expected_institution__name")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(CaseLink)
