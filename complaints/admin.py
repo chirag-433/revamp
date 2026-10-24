@@ -6,6 +6,8 @@ from .models import (
     CaseAction,
     CaseLink,
     ComplaintCase,
+    CoordinationMessage,
+    CoordinationNotification,
     Institution,
     InstitutionAlias,
     StatusMap,
@@ -90,4 +92,33 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CoordinationMessage)
+class CoordinationMessageAdmin(admin.ModelAdmin):
+    list_display = ("link", "author", "mentioned_bureau", "created_at")
+    search_fields = ("body", "link__case_a__case_number", "link__case_b__case_number")
+    list_filter = ("mentioned_bureau", "created_at")
+    readonly_fields = ("link", "author", "mentioned_bureau", "body", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CoordinationNotification)
+class CoordinationNotificationAdmin(admin.ModelAdmin):
+    list_display = ("recipient", "message", "created_at", "read_at")
+    readonly_fields = ("recipient", "message", "created_at", "read_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False
