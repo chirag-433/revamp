@@ -27,7 +27,7 @@ jobs:
           - 6379:6379
     env:
       DJANGO_SECRET_KEY: ci-test-secret-key
-      DJANGO_DEBUG: "0"
+      DJANGO_DEBUG: "1"
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_URL: postgresql://sih:sih@localhost:5432/sih
       CELERY_BROKER_URL: redis://localhost:6379/0
