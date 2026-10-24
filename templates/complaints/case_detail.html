@@ -44,6 +44,9 @@
   </dl></section>
   <section class="panel"><div class="panel-heading"><h2>Description</h2></div><p class="prose">{{ case.description|default:"No description was supplied."|linebreaksbr }}</p></section>
 </div>
+
+{% if related_links %}<section class="panel"><div class="panel-heading"><h2>Linked cases</h2></div><ul class="linked-case-list">{% for link in related_links %}{% if link.case_a_id == case.pk %}{% with counterpart=link.case_b %}<li><a href="{% url 'complaints:case_detail' counterpart.pk %}">{{ counterpart.case_number|default:counterpart.source_case_id }}</a> · {{ counterpart.bureau.code }} · {{ link.get_link_type_display }}</li>{% endwith %}{% else %}{% with counterpart=link.case_a %}<li><a href="{% url 'complaints:case_detail' counterpart.pk %}">{{ counterpart.case_number|default:counterpart.source_case_id }}</a> · {{ counterpart.bureau.code }} · {{ link.get_link_type_display }}</li>{% endwith %}{% endif %}{% endfor %}</ul></section>{% endif %}
+
 <section class="panel"><div class="panel-heading"><h2>Source action history</h2></div><div class="timeline">
   {% for action in case.actions.all %}<article class="timeline-item"><time>{{ action.acted_at|date:"j M Y, H:i" }}</time><div><strong>{{ action.action_type|capfirst }}</strong><p>{{ action.remarks|default:"No remarks supplied." }}</p><small>{{ action.actor_label|default:"Source record" }}</small></div></article>
   {% empty %}<p class="empty">No action history was supplied for this case.</p>{% endfor %}

@@ -269,6 +269,7 @@ class CaseLink(models.Model):
                 fields=["review_state", "link_type"], name="complaints__review__link_idx"
             )
         ]
+        permissions = [("review_case_links", "Can review and coordinate linked cases")]
         ordering = ["-created_at"]
 
     def clean(self):
@@ -285,7 +286,21 @@ class CaseLink(models.Model):
         return f"{self.case_a} / {self.case_b} ({self.get_link_type_display()})"
 
 
+class AppendOnlyAuditQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Audit log entries are append-only.")
+
+    def delete(self):
+        raise ValidationError("Audit log entries are append-only.")
+
+
+class AppendOnlyAuditManager(models.Manager.from_queryset(AppendOnlyAuditQuerySet)):
+    pass
+
+
 class AuditLog(models.Model):
+    objects = AppendOnlyAuditManager()
+
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -302,6 +317,58 @@ class AuditLog(models.Model):
     class Meta:
         ordering = ["-occurred_at", "-id"]
 
+    def save(self, *args, **kwargs):
+        if self.pk and AuditLog.objects.filter(pk=self.pk).exists():
+            raise ValidationError("Audit log entries are append-only.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Audit log entries are append-only.")
+
     def __str__(self):
         return f"{self.action} {self.entity_type}:{self.entity_id}"
 
+
+
+class CoordinationMessage(models.Model):
+    """A message in the coordination thread for one linked pair of cases."""
+
+    link = models.ForeignKey(CaseLink, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name="coordination_messages"
+    )
+    mentioned_bureau = models.ForeignKey(
+        BureauCell, on_delete=models.PROTECT, related_name="coordination_messages"
+    )
+    body = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"Message for {self.link_id} to {self.mentioned_bureau.code}"
+
+
+class CoordinationNotification(models.Model):
+    """An in-app notification sent to an officer group for a bureau."""
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="coordination_notifications"
+    )
+    message = models.ForeignKey(
+        CoordinationMessage, on_delete=models.CASCADE, related_name="notifications"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [models.UniqueConstraint(
+            fields=["recipient", "message"], name="unique_coordination_message_notification"
+        )]
+
+    def __str__(self):
+        return f"Coordination notification for {self.recipient_id}"

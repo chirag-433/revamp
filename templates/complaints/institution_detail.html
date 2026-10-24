@@ -4,6 +4,9 @@
 <p class="breadcrumb"><a href="{% url 'complaints:case_list' %}">Cases</a> / Institution</p>
 <div class="page-heading"><div><p class="eyebrow">INSTITUTION PROFILE</p><h1>{{ institution.name }}</h1><p class="muted">{{ institution.aicte_permanent_id|default:"No Permanent ID recorded" }}</p></div></div>
 
+
+{% if has_overlap_alert %}<section class="overlap-alert-panel"><div><p class="eyebrow">COORDINATION REQUIRED</p><h2>Potential Overlapping Cases - Coordination Required</h2><p>Review confirmed institution assignments across Bureaus/Cells.</p></div>{% if can_review_overlaps %}<div class="alert-list">{% for link in overlap_links %}<a href="{% url 'complaints:overlap_detail' link.pk %}"><strong>{{ link.case_a.case_number|default:link.case_a.source_case_id }} vs {{ link.case_b.case_number|default:link.case_b.source_case_id }}</strong><span>{{ link.explanation.severity|default:"Review" }} severity · {{ link.explanation.institution_confidence_display|default:"Not scored" }} confidence</span></a>{% empty %}<a class="button primary" href="{% url 'complaints:overlap_center' %}">Open Overlap Center</a>{% endfor %}</div>{% else %}<a class="button primary" href="{% url 'login' %}?next={% url 'complaints:overlap_center' %}">Sign in to review</a>{% endif %}</section>{% endif %}
+
 {% if has_overlap %}
 <section class="panel alert-panel alert-warning">
   <div class="alert-icon">⚠️</div>

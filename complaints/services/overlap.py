@@ -1,228 +1,172 @@
-"""
-Cross-bureau overlap detection.
+from difflib import SequenceMatcher
+from itertools import combinations
 
-Creates CaseLink suggestions when the same resolved Institution has open cases
-in different Bureaus/Cells.  Overlaps are coordination suggestions, never
-automatic case merges.
-"""
-
-from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
+from django.db.models import Exists, F, OuterRef
 
 from complaints.models import (
-    AuditLog,
-    CanonicalStatus,
-    CaseLink,
-    ComplaintCase,
+    AuditLog, CanonicalStatus, CaseLink, ComplaintCase, InstitutionMatchStatus,
 )
 
 
-def detect_overlaps_for_case(case: ComplaintCase) -> list[CaseLink]:
-    """
-    Given a single case that has a resolved institution, find open cases
-    for the same institution in *different* Bureaus/Cells and create
-    CaseLink records (type=overlap, review_state=suggested).
+def case_confidence(case):
+    if case.match_confidence is not None:
+        return float(case.match_confidence)
+    if case.match_status == InstitutionMatchStatus.EXACT_ID:
+        return 1.0
+    return None
 
-    Returns a list of newly created CaseLinks.
-    """
-    if not case.institution_id:
-        return []
 
-    if case.status == CanonicalStatus.DISPOSED:
-        return []
+def compare_case_text(left, right):
+    left_text = " ".join((left.category + " " + left.description).casefold().split())
+    right_text = " ".join((right.category + " " + right.description).casefold().split())
+    if not left_text or not right_text:
+        return 0.0
+    return SequenceMatcher(None, left_text, right_text).ratio()
 
-    # Find open cases for the same institution in other bureaus.
-    other_cases = (
-        ComplaintCase.objects
-        .filter(institution_id=case.institution_id)
-        .exclude(pk=case.pk)
-        .exclude(bureau_id=case.bureau_id)
-        .exclude(status=CanonicalStatus.DISPOSED)
+
+def overlap_details(case_a, case_b):
+    similarity = compare_case_text(case_a, case_b)
+    same_category = bool(case_a.category and case_a.category.casefold() == case_b.category.casefold())
+    confidence_values = [case_confidence(case_a), case_confidence(case_b)]
+    confidence = min(confidence_values) if all(value is not None for value in confidence_values) else None
+    if similarity > 0.75 and same_category:
+        severity = "High"
+    elif similarity > 0.5 or same_category:
+        severity = "Medium"
+    else:
+        severity = "Low"
+    highlights = []
+    if same_category:
+        highlights.append(f"Both cases are categorized as {case_a.category}.")
+    else:
+        highlights.append("The case categories differ.")
+    highlights.append(f"Description text similarity: {similarity:.0%}.")
+    explanation = (
+        "Both cases are open, have the same resolved institution, and belong to different "
+        f"Bureaus/Cells ({case_a.bureau.code} and {case_b.bureau.code}). "
+        + " ".join(highlights)
     )
-
-    created_links = []
-
-    for other in other_cases:
-        # Normalise order so (a, b) is always (smaller_pk, larger_pk).
-        a_id, b_id = sorted([case.pk, other.pk])
-
-        # Check if this link already exists (any type, any state).
-        existing = CaseLink.objects.filter(
-            case_a_id=a_id,
-            case_b_id=b_id,
-            link_type=CaseLink.LinkType.OVERLAP,
-        ).exists()
-
-        if existing:
-            continue
-
-        case_obj_a = case if case.pk == a_id else other
-        case_obj_b = other if case.pk == a_id else case
-
-        explanation = {
-            "reason": "Same institution has open cases in different Bureaus/Cells",
-            "institution_id": case.institution_id,
-            "institution_name": case.institution.name if case.institution else "",
-            "case_a_bureau": case_obj_a.bureau.code,
-            "case_b_bureau": case_obj_b.bureau.code,
-            "case_a_status": case_obj_a.status,
-            "case_b_status": case_obj_b.status,
-            "case_a_category": case_obj_a.category,
-            "case_b_category": case_obj_b.category,
-            "detected_at": timezone.now().isoformat(),
-        }
-
-        link = CaseLink.objects.create(
-            case_a_id=a_id,
-            case_b_id=b_id,
-            link_type=CaseLink.LinkType.OVERLAP,
-            review_state=CaseLink.ReviewState.SUGGESTED,
-            explanation=explanation,
-        )
-        created_links.append(link)
-
-    return created_links
+    return {
+        "institution_match_method": "confirmed institution assignment",
+        "institution_confidence": round(confidence, 4) if confidence is not None else None,
+        "institution_confidence_percent": round(confidence * 100) if confidence is not None else None,
+        "institution_confidence_display": f"{confidence:.0%}" if confidence is not None else "Not scored",
+        "both_open": True,
+        "bureaus": [case_a.bureau.code, case_b.bureau.code],
+        "same_category": same_category,
+        "text_similarity": round(similarity, 4),
+        "severity": severity,
+        "similarity_highlights": highlights,
+        "readable_explanation": explanation,
+    }, confidence
 
 
-def detect_overlaps_for_institution(institution_id: int) -> list[CaseLink]:
-    """
-    Run overlap detection across all open cases for a given institution.
-    Returns newly created CaseLinks.
-    """
-    open_cases = (
-        ComplaintCase.objects
-        .filter(institution_id=institution_id)
-        .exclude(status=CanonicalStatus.DISPOSED)
-        .select_related("bureau", "institution")
-    )
-
-    cases_list = list(open_cases)
-    if len(cases_list) < 2:
-        return []
-
-    case_ids = [c.pk for c in cases_list]
-    existing_pairs = set(
-        CaseLink.objects.filter(
-            case_a_id__in=case_ids,
-            case_b_id__in=case_ids,
-            link_type=CaseLink.LinkType.OVERLAP,
-        ).values_list("case_a_id", "case_b_id")
-    )
-
-    links_to_create = []
-    seen_pairs = set()
-
-    for i, case_a in enumerate(cases_list):
-        for case_b in cases_list[i + 1:]:
-            if case_a.bureau_id == case_b.bureau_id:
+@transaction.atomic
+def sync_overlap_suggestions(institution_id=None):
+    """Create missing suggestions using the established resolved-institution rule."""
+    cases = ComplaintCase.objects.filter(
+        institution__isnull=False, match_status__in=[
+            InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED
+        ]
+    ).exclude(status=CanonicalStatus.DISPOSED).select_related("institution", "bureau")
+    if institution_id is not None:
+        cases = cases.filter(institution_id=institution_id)
+    created = []
+    by_institution = {}
+    for case in cases.order_by("institution_id", "id"):
+        by_institution.setdefault(case.institution_id, []).append(case)
+    for institution_cases in by_institution.values():
+        for first, second in combinations(institution_cases, 2):
+            if first.bureau_id == second.bureau_id:
                 continue
-
-            a_id, b_id = sorted([case_a.pk, case_b.pk])
-            pair_key = (a_id, b_id)
-            if pair_key in seen_pairs or pair_key in existing_pairs:
+            case_a, case_b = sorted((first, second), key=lambda case: case.pk)
+            if CaseLink.objects.filter(
+                case_a=case_a, case_b=case_b,
+                link_type=CaseLink.LinkType.RELATED,
+                review_state=CaseLink.ReviewState.CONFIRMED,
+            ).exists():
                 continue
-            seen_pairs.add(pair_key)
-            existing_pairs.add(pair_key)
-
-            case_obj_a = case_a if case_a.pk == a_id else case_b
-            case_obj_b = case_b if case_a.pk == a_id else case_a
-
-            explanation = {
-                "reason": "Same institution has open cases in different Bureaus/Cells",
-                "institution_id": institution_id,
-                "institution_name": case_obj_a.institution.name if case_obj_a.institution else "",
-                "case_a_bureau": case_obj_a.bureau.code,
-                "case_b_bureau": case_obj_b.bureau.code,
-                "case_a_status": case_obj_a.status,
-                "case_b_status": case_obj_b.status,
-                "case_a_category": case_obj_a.category,
-                "case_b_category": case_obj_b.category,
-                "detected_at": timezone.now().isoformat(),
-            }
-
-            links_to_create.append(CaseLink(
-                case_a_id=a_id,
-                case_b_id=b_id,
-                link_type=CaseLink.LinkType.OVERLAP,
-                review_state=CaseLink.ReviewState.SUGGESTED,
-                explanation=explanation,
-            ))
-
-    if links_to_create:
-        return CaseLink.objects.bulk_create(links_to_create)
-    return []
+            details, confidence = overlap_details(case_a, case_b)
+            link, was_created = CaseLink.objects.get_or_create(
+                case_a=case_a, case_b=case_b, link_type=CaseLink.LinkType.OVERLAP,
+                defaults={"review_state": CaseLink.ReviewState.SUGGESTED,
+                          "score": None, "explanation": details},
+            )
+            if was_created:
+                created.append(link)
+    return created
 
 
-def run_full_overlap_scan() -> dict:
-    """
-    Scan all institutions that have open cases in multiple bureaus
-    and create overlap suggestions.  Returns a summary.
-    """
-    from django.db import transaction
+def suggested_overlap_links():
+    active_related = CaseLink.objects.filter(
+        case_a_id=OuterRef("case_a_id"),
+        case_b_id=OuterRef("case_b_id"),
+        link_type=CaseLink.LinkType.RELATED,
+        review_state=CaseLink.ReviewState.CONFIRMED,
+    )
+    return CaseLink.objects.filter(
+        link_type=CaseLink.LinkType.OVERLAP,
+        review_state=CaseLink.ReviewState.SUGGESTED,
+        case_a__status__in=[CanonicalStatus.PENDING, CanonicalStatus.UNDER_PROCESS,
+                            CanonicalStatus.TRANSFERRED, CanonicalStatus.ESCALATED],
+        case_b__status__in=[CanonicalStatus.PENDING, CanonicalStatus.UNDER_PROCESS,
+                            CanonicalStatus.TRANSFERRED, CanonicalStatus.ESCALATED],
+        case_a__institution_id=F("case_b__institution_id"),
+    ).exclude(case_a__bureau_id=F("case_b__bureau_id")).annotate(
+        has_related_link=Exists(active_related)
+    ).filter(has_related_link=False)
+
+
+# Phase 3 service API retained for the matching command and existing callers.
+def detect_overlaps_for_case(case):
+    if (not case.institution_id or case.status == CanonicalStatus.DISPOSED
+            or case.match_status not in {InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED}):
+        return []
+    created = sync_overlap_suggestions(institution_id=case.institution_id)
+    return [link for link in created if case.pk in {link.case_a_id, link.case_b_id}]
+
+
+def detect_overlaps_for_institution(institution_id):
+    return sync_overlap_suggestions(institution_id=institution_id)
+
+
+def run_full_overlap_scan():
     from django.db.models import Count
-
-    # Find institutions with open cases in more than one bureau.
-    institutions_with_multi_bureau = (
-        ComplaintCase.objects
-        .exclude(status=CanonicalStatus.DISPOSED)
-        .filter(institution__isnull=False)
+    institutions = (
+        ComplaintCase.objects.filter(
+            institution__isnull=False,
+            match_status__in=[InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED],
+        ).exclude(status=CanonicalStatus.DISPOSED)
         .values("institution_id")
         .annotate(bureau_count=Count("bureau_id", distinct=True))
         .filter(bureau_count__gt=1)
     )
-
     stats = {"institutions_scanned": 0, "links_created": 0}
-
-    with transaction.atomic():
-        for row in institutions_with_multi_bureau:
-            stats["institutions_scanned"] += 1
-            links = detect_overlaps_for_institution(row["institution_id"])
-            stats["links_created"] += len(links)
-
+    for row in institutions:
+        stats["institutions_scanned"] += 1
+        stats["links_created"] += len(sync_overlap_suggestions(row["institution_id"]))
     return stats
 
 
-def review_overlap(
-    link: CaseLink,
-    decision: str,
-    user=None,
-    note: str = "",
-) -> CaseLink:
-    """
-    Record an officer's decision on an overlap suggestion.
-
-    *decision*: "confirmed", "rejected", or "related".
-    """
-    valid_decisions = {
-        "confirmed": CaseLink.ReviewState.CONFIRMED,
-        "rejected": CaseLink.ReviewState.REJECTED,
+def review_overlap(link, decision, user=None, note=""):
+    """Compatibility API for Phase 3 callers; decisions remain audited."""
+    choices = {
+        "confirmed": (CaseLink.LinkType.OVERLAP, CaseLink.ReviewState.CONFIRMED, "overlap_confirmed"),
+        "rejected": (CaseLink.LinkType.OVERLAP, CaseLink.ReviewState.REJECTED, "overlap_rejected"),
+        "related": (CaseLink.LinkType.RELATED, CaseLink.ReviewState.CONFIRMED, "overlap_linked_as_related"),
     }
-
-    if decision == "related":
-        link.link_type = CaseLink.LinkType.RELATED
-        link.review_state = CaseLink.ReviewState.CONFIRMED
-    elif decision in valid_decisions:
-        link.review_state = valid_decisions[decision]
-    else:
+    if decision not in choices:
         raise ValueError(f"Invalid decision: {decision}")
-
+    link.link_type, link.review_state, action = choices[decision]
     link.decided_by = user
     link.decision_note = note
     link.decided_at = timezone.now()
     link.save()
-
-    # Audit log.
     AuditLog.objects.create(
-        actor=user,
-        action=f"overlap_{decision}",
-        entity_type="CaseLink",
-        entity_id=str(link.pk),
-        details={
-            "case_a": link.case_a_id,
-            "case_b": link.case_b_id,
-            "decision": decision,
-            "note": note,
-        },
+        actor=user, action=action, entity_type="CaseLink", entity_id=str(link.pk),
+        details={"case_a": link.case_a_id, "case_b": link.case_b_id,
+                 "decision": decision, "reason": note, "note": note},
     )
-
     return link

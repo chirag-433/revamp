@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Overlap Center · Casework{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">CROSS-BUREAU COORDINATION</p>
+    <h1>Overlap Center</h1>
+    <p class="muted">Review possible duplicate work, confirm institution matches, and keep related Bureaus/Cells coordinated.</p>
+  </div>
+  <a class="button" href="{% url 'complaints:coordination_notifications' %}">Coordination notifications</a>
+</div>
+
+<section class="panel overlap-panel" aria-labelledby="overlap-queue-title">
+  <div class="panel-heading">
+    <div><p class="eyebrow">REVIEW QUEUE</p><h2 id="overlap-queue-title">Potential Overlapping Cases - Coordination Required</h2>
+      <p class="muted">Compare the case records before confirming an overlap, linking cases as related, or rejecting a suggestion.</p></div>
+    <span class="count-pill">{{ suggestions|length }} awaiting review</span>
+  </div>
+  {% for link in suggestions %}
+  <article class="queue-card">
+    <div class="queue-card-head">
+      <div><span class="severity severity-{{ link.explanation.severity|lower|default:'medium' }}">{{ link.explanation.severity|default:"Review" }} priority</span>
+        <span class="confidence">Institution confidence: {{ link.explanation.institution_confidence_display|default:"Not scored" }}</span></div>
+      <a class="button subtle" href="{% url 'complaints:overlap_detail' link.pk %}">Compare and review</a>
+    </div>
+    <p class="queue-explanation">{{ link.explanation.readable_explanation|default:"These open cases may concern the same institution and need reviewer assessment." }}</p>
+    <div class="case-pair">
+      <a href="{% url 'complaints:case_detail' link.case_a.pk %}"><strong>{{ link.case_a.case_number|default:link.case_a.source_case_id }}</strong><small>{{ link.case_a.bureau.code }} · {{ link.case_a.bureau.name }} · {{ link.case_a.institution.name|default:link.case_a.raw_institution_name }}</small></a>
+      <span aria-hidden="true">↔</span>
+      <a href="{% url 'complaints:case_detail' link.case_b.pk %}"><strong>{{ link.case_b.case_number|default:link.case_b.source_case_id }}</strong><small>{{ link.case_b.bureau.code }} · {{ link.case_b.bureau.name }} · {{ link.case_b.institution.name|default:link.case_b.raw_institution_name }}</small></a>
+    </div>
+  </article>
+  {% empty %}<p class="empty">No potential overlapping cases are waiting for review.</p>{% endfor %}
+</section>
+
+<section class="panel overlap-panel" aria-labelledby="borderline-title">
+  <div class="panel-heading"><div><p class="eyebrow">INSTITUTION MATCH REVIEW</p><h2 id="borderline-title">Borderline institution matches</h2>
+    <p class="muted">Check suggested institution matches before they are used to generate overlap candidates.</p></div>
+    <span class="count-pill">{{ borderline_cases|length }} to review</span>
+  </div>
+  {% for case in borderline_cases %}
+  <article class="match-review">
+    <div><strong>{{ case.case_number|default:case.source_case_id }} · {{ case.bureau.code }}</strong>
+      <p>Imported institution name: {{ case.raw_institution_name|default:"Not supplied" }}</p>
+      <small>Current suggestion: {{ case.institution.name|default:"No institution selected" }} · confidence {{ case.match_confidence|default:"Not scored" }}</small></div>
+    {% if can_edit %}<form class="inline-form" method="post" action="{% url 'complaints:review_institution_match' case.pk %}">{% csrf_token %}
+      <label class="sr-only" for="institution-{{ case.pk }}">Confirm institution for {{ case.case_number|default:case.source_case_id }}</label>
+      <select id="institution-{{ case.pk }}" name="institution_id" required><option value="">Choose the correct institution</option>{% for institution in institutions %}<option value="{{ institution.pk }}" {% if case.institution_id == institution.pk %}selected{% endif %}>{{ institution.name }}{% if institution.aicte_permanent_id %} · {{ institution.aicte_permanent_id }}{% endif %}</option>{% endfor %}</select>
+      <button class="button" type="submit">Confirm match</button>
+    </form>{% endif %}
+  </article>
+  {% empty %}<p class="empty">No borderline institution matches need review.</p>{% endfor %}
+</section>
+
+{% if can_edit %}
+<section class="panel overlap-panel" aria-labelledby="manual-link-title">
+  <div class="panel-heading"><div><p class="eyebrow">REVIEWER ACTION</p><h2 id="manual-link-title">Manually link cases as related</h2>
+    <p class="muted">Use this when the overlap detector did not suggest a relationship. The link and your reason are recorded in the audit log.</p></div></div>
+  <form method="post" action="{% url 'complaints:link_cases' %}" class="manual-link-form">{% csrf_token %}
+    <label>First case<select name="case_a" required><option value="">Choose a case</option>{% for case in manual_link_cases %}<option value="{{ case.pk }}">{{ case.case_number|default:case.source_case_id }} · {{ case.bureau.code }} · {{ case.institution.name|default:case.raw_institution_name }}</option>{% endfor %}</select></label>
+    <label>Related case<select name="case_b" required><option value="">Choose a case</option>{% for case in manual_link_cases %}<option value="{{ case.pk }}">{{ case.case_number|default:case.source_case_id }} · {{ case.bureau.code }} · {{ case.institution.name|default:case.raw_institution_name }}</option>{% endfor %}</select></label>
+    <label>Reason (optional)<input name="reason" maxlength="4000"></label>
+    <button class="button primary" type="submit">Link as related</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel overlap-panel" aria-labelledby="related-title">
+  <div class="panel-heading"><div><p class="eyebrow">CONFIRMED RELATIONSHIPS</p><h2 id="related-title">Related case links</h2>
+    <p class="muted">These cases are connected for coordination but are not confirmed as duplicate complaints.</p></div>
+    <span class="count-pill">{{ related_links|length }} links</span>
+  </div>
+  {% for link in related_links %}
+  <article class="related-row">
+    <a href="{% url 'complaints:overlap_detail' link.pk %}">{{ link.case_a.case_number|default:link.case_a.source_case_id }} <span>{{ link.case_a.bureau.code }}</span> ↔ {{ link.case_b.case_number|default:link.case_b.source_case_id }} <span>{{ link.case_b.bureau.code }}</span></a>
+    {% if can_edit %}<form method="post" action="{% url 'complaints:unlink_cases' link.pk %}" class="inline-form">{% csrf_token %}<label class="sr-only" for="unlink-reason-{{ link.pk }}">Reason for unlinking these cases</label><input id="unlink-reason-{{ link.pk }}" name="reason" maxlength="4000" placeholder="Reason (optional)"><button class="button danger subtle" type="submit">Unlink cases</button></form>{% endif %}
+  </article>
+  {% empty %}<p class="empty">No confirmed related-case links yet.</p>{% endfor %}
+</section>
+{% endblock %}
