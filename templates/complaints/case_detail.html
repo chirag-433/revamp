@@ -51,5 +51,42 @@
   {% for action in case.actions.all %}<article class="timeline-item"><time>{{ action.acted_at|date:"j M Y, H:i" }}</time><div><strong>{{ action.action_type|capfirst }}</strong><p>{{ action.remarks|default:"No remarks supplied." }}</p><small>{{ action.actor_label|default:"Source record" }}</small></div></article>
   {% empty %}<p class="empty">No action history was supplied for this case.</p>{% endfor %}
 </div></section>
+{% if transfers %}
+<section class="panel"><div class="panel-heading"><h2>Bureau transfer history</h2></div><div class="timeline">
+  {% for transfer in transfers %}
+    <article class="timeline-item"><time>{{ transfer.requested_at|date:"j M Y, H:i" }}</time><div>
+      <strong>{{ transfer.from_bureau.code }} → {{ transfer.to_bureau.code }}</strong>
+      <p>{{ transfer.get_state_display }}{% if transfer.note %} · {{ transfer.note }}{% endif %}</p>
+      {% if transfer.state == "pending" and can_update_workflow and transfer in pending_transfers %}
+        <form method="post" action="{% url 'complaints:respond_to_transfer' transfer.pk %}" class="inline-actions">
+          {% csrf_token %}
+          <button class="button primary" name="decision" value="accept" type="submit">Accept transfer</button>
+          <button class="button" name="decision" value="reject" type="submit">Reject transfer</button>
+        </form>
+      {% endif %}
+    </div></article>
+  {% endfor %}
+</div></section>
+{% endif %}
+{% if can_update_workflow %}
+<section class="panel workflow-update-panel" aria-labelledby="workflow-update-title">
+  <div class="panel-heading"><div><p class="eyebrow">PHASE 4B · CASEWORK</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
+  <p class="muted">This creates a time-stamped history entry and records the status and next step.</p>
+  <form method="post" action="{% url 'complaints:record_case_action' case.pk %}" class="workflow-form">
+    {% csrf_token %}
+    {{ workflow_form.non_field_errors }}
+    <div class="form-grid">
+      <label for="id_status">Status {{ workflow_form.status }}</label>
+      <label for="id_sla_due_at">{{ workflow_form.sla_due_at.label }} {{ workflow_form.sla_due_at }}</label>
+      <label class="form-wide" for="id_transfer_to">{{ workflow_form.transfer_to.label }} {{ workflow_form.transfer_to }}</label>
+      <label class="form-wide" for="id_next_action">Next action {{ workflow_form.next_action }}</label>
+      <label class="form-wide" for="id_remarks">Action notes {{ workflow_form.remarks }}</label>
+    </div>
+    <button class="button primary" type="submit">Save case update</button>
+  </form>
+</section>
+{% elif not user.is_authenticated %}
+<section class="panel"><p class="muted">Sign in with an authorized officer account to record workflow updates.</p></section>
+{% endif %}
 {% endblock %}
 

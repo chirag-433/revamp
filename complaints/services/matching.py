@@ -77,6 +77,7 @@ def find_candidates(
     state: str = "",
     exclude_id: int | None = None,
     top_n: int = 10,
+    institutions=None,
 ) -> list[MatchCandidate]:
     """
     Return up to *top_n* candidate Institutions ranked by composite score.
@@ -90,9 +91,12 @@ def find_candidates(
     candidates: list[MatchCandidate] = []
 
     # Collect all active institutions.
-    institutions = Institution.objects.filter(is_active=True)
-    if exclude_id:
-        institutions = institutions.exclude(pk=exclude_id)
+    if institutions is None:
+        institutions = Institution.objects.filter(is_active=True).prefetch_related("aliases")
+        if exclude_id:
+            institutions = institutions.exclude(pk=exclude_id)
+    elif exclude_id:
+        institutions = (inst for inst in institutions if inst.pk != exclude_id)
 
     for inst in institutions:
         best_name_sim = _name_similarity(norm_name, inst.normalized_name)
@@ -100,7 +104,8 @@ def find_candidates(
         matched_via = "name"
 
         # Also check aliases for a better match.
-        for alias in InstitutionAlias.objects.filter(institution=inst):
+        aliases = list(inst.aliases.all())
+        for alias in aliases:
             alias_sim = _name_similarity(norm_name, alias.normalized_alias)
             alias_tok = _token_overlap(norm_name, alias.normalized_alias)
             if alias_sim > best_name_sim:
@@ -123,9 +128,7 @@ def find_candidates(
             continue
 
         # Check aliases for exact match too.
-        exact_alias = InstitutionAlias.objects.filter(
-            institution=inst, normalized_alias=norm_name
-        ).first()
+        exact_alias = next((alias for alias in aliases if alias.normalized_alias == norm_name), None)
         if exact_alias:
             candidates.append(MatchCandidate(
                 institution=inst,
@@ -180,7 +183,7 @@ def find_candidates(
     return candidates[:top_n]
 
 
-def resolve_institution(case: ComplaintCase) -> MatchCandidate | None:
+def resolve_institution(case: ComplaintCase, institutions=None) -> MatchCandidate | None:
     """
     Try to resolve a case to an institution.  Returns the best candidate if any
     meets the review threshold, or None.
@@ -199,6 +202,7 @@ def resolve_institution(case: ComplaintCase) -> MatchCandidate | None:
         raw_name=case.raw_institution_name,
         district=case.institution.district if case.institution else "",
         state=case.institution.state if case.institution else "",
+        institutions=institutions,
     )
 
     if not candidates:
@@ -245,9 +249,12 @@ def resolve_unmatched_cases() -> dict:
     ).exclude(raw_institution_name="")
 
     stats = {"resolved_auto": 0, "suggested_review": 0, "still_unmatched": 0}
+    # Load institutions and aliases once for the batch. Without this, each
+    # unmatched case repeats the same prefetch and re-queries the entire catalog.
+    institutions = list(Institution.objects.filter(is_active=True).prefetch_related("aliases"))
 
     for case in unmatched:
-        result = resolve_institution(case)
+        result = resolve_institution(case, institutions=institutions)
         if result is None:
             stats["still_unmatched"] += 1
         elif case.match_status == InstitutionMatchStatus.FUZZY_SUGGESTED:

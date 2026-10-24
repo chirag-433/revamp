@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 
 
 class CanonicalStatus(models.TextChoices):
@@ -170,6 +171,9 @@ class ComplaintCase(models.Model):
                 fields=["institution", "status"], name="complaints__institut_stat_idx"
             ),
         ]
+        permissions = [
+            ("manage_case_workflow", "Can record case workflow actions"),
+        ]
         ordering = ["-received_at", "-id"]
 
     @property
@@ -216,6 +220,139 @@ class CaseAction(models.Model):
 
     def __str__(self):
         return f"{self.action_type} - {self.case}"
+
+
+class CaseTransfer(models.Model):
+    class State(models.TextChoices):
+        PENDING = "pending", "Awaiting acceptance"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+
+    case = models.ForeignKey(ComplaintCase, on_delete=models.CASCADE, related_name="transfers")
+    from_bureau = models.ForeignKey(BureauCell, on_delete=models.PROTECT, related_name="transfers_from")
+    to_bureau = models.ForeignKey(BureauCell, on_delete=models.PROTECT, related_name="transfers_to")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="transfers_requested"
+    )
+    previous_status = models.CharField(
+        max_length=16, choices=CanonicalStatus.choices, default=CanonicalStatus.PENDING
+    )
+    requested_at = models.DateTimeField(default=timezone.now, db_index=True)
+    state = models.CharField(max_length=16, choices=State.choices, default=State.PENDING, db_index=True)
+    note = models.TextField(blank=True)
+    responded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="transfers_responded",
+    )
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-requested_at", "-id"]
+        indexes = [models.Index(fields=["state", "requested_at"], name="complaints__transfer_state_idx")]
+
+    def __str__(self):
+        return f"{self.case} → {self.to_bureau.code} ({self.state})"
+
+
+class SlaAlert(models.Model):
+    class AlertType(models.TextChoices):
+        DUE_SOON = "due_soon", "Due soon"
+        OVERDUE = "overdue", "Overdue"
+        STALE = "stale", "No recent action"
+        ESCALATED = "escalated", "Escalated case"
+        TRANSFER_AWAITING = "transfer_awaiting", "Transfer awaiting acceptance"
+
+    case = models.ForeignKey(
+        ComplaintCase, on_delete=models.CASCADE, related_name="sla_alerts"
+    )
+    alert_type = models.CharField(max_length=24, choices=AlertType.choices)
+    opened_at = models.DateTimeField(default=timezone.now, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["resolved_at", "opened_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case", "alert_type"],
+                condition=Q(resolved_at__isnull=True),
+                name="unique_active_sla_alert_per_type",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_alert_type_display()} — {self.case}"
+
+
+class SyntheticMatchLabel(models.Model):
+    """Ground-truth label kept separate from matcher inputs for benchmark runs."""
+
+    case = models.OneToOneField(
+        ComplaintCase, on_delete=models.CASCADE, related_name="match_label"
+    )
+    expected_institution = models.ForeignKey(
+        Institution, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="synthetic_match_labels",
+    )
+    dataset = models.CharField(max_length=80, default="demo-match-v1", db_index=True)
+
+    class Meta:
+        ordering = ["dataset", "case_id"]
+
+    def __str__(self):
+        return f"{self.dataset}: {self.case}"
+
+
+class SyntheticLinkLabel(models.Model):
+    """Ground truth for synthetic overlap and conflict evaluation."""
+
+    class ExpectedType(models.TextChoices):
+        OVERLAP = "overlap", "Overlap"
+        CONFLICT = "conflict", "Conflict"
+        NONE = "none", "No link"
+
+    case_a = models.ForeignKey(
+        ComplaintCase, on_delete=models.CASCADE, related_name="synthetic_link_labels_a"
+    )
+    case_b = models.ForeignKey(
+        ComplaintCase, on_delete=models.CASCADE, related_name="synthetic_link_labels_b"
+    )
+    expected_type = models.CharField(max_length=16, choices=ExpectedType.choices)
+    dataset = models.CharField(max_length=80, default="demo-links-v1", db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case_a", "case_b", "dataset"],
+                name="unique_synthetic_link_label",
+            ),
+            models.CheckConstraint(
+                condition=~Q(case_a=F("case_b")),
+                name="synthetic_link_label_distinct_cases",
+            ),
+        ]
+        ordering = ["dataset", "case_a_id", "case_b_id"]
+
+    def save(self, *args, **kwargs):
+        if self.case_a_id and self.case_b_id and self.case_a_id > self.case_b_id:
+            self.case_a_id, self.case_b_id = self.case_b_id, self.case_a_id
+        super().save(*args, **kwargs)
+
+
+class ConflictRule(models.Model):
+    """Configurable action pair that should be reviewed as a possible conflict."""
+
+    name = models.CharField(max_length=120, unique=True)
+    action_type_a = models.CharField(max_length=80)
+    action_type_b = models.CharField(max_length=80)
+    explanation = models.CharField(max_length=500)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
 
 
 class CaseLink(models.Model):

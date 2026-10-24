@@ -13,6 +13,7 @@ from complaints.models import (
     Institution,
     InstitutionAlias,
     InstitutionMatchStatus,
+    SyntheticLinkLabel,
     StatusMap,
 )
 
@@ -99,6 +100,8 @@ DESCRIPTIONS = [
 STATUS_MAPPING = {
     "received": CanonicalStatus.PENDING,
     "pending": CanonicalStatus.PENDING,
+    "open": CanonicalStatus.PENDING,
+    "in process": CanonicalStatus.UNDER_PROCESS,
     "in progress": CanonicalStatus.UNDER_PROCESS,
     "under process": CanonicalStatus.UNDER_PROCESS,
     "under review": CanonicalStatus.UNDER_PROCESS,
@@ -150,14 +153,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--institutions",
             type=int,
-            default=100,
-            help="Number of institutions to generate (default 100).",
+            default=800,
+            help="Number of institutions to generate (default 800).",
         )
         parser.add_argument(
             "--cases-per-institution",
             type=int,
-            default=4,
-            help="Average cases per institution (default 4).",
+            default=5,
+            help="Average cases per institution (default 5; generates about 4,000 total cases).",
         )
         parser.add_argument(
             "--overlap-pct",
@@ -196,14 +199,20 @@ class Command(BaseCommand):
                 rng, now, institutions, bureau_objects, overlap_pct,
             )
 
+            conflict_count = self._plant_conflicts(
+                rng, institutions[:min(30, len(institutions))], bureau_objects,
+            )
+            negative_link_count = self._plant_negative_link_labels(rng, all_cases, 300)
+
             self.stdout.write("Running overlap detection on planted data...")
             self._run_detection()
 
-        total_cases = ComplaintCase.objects.count()
+        total_cases = ComplaintCase.objects.filter(source_system="DEMO").count()
         total_links = CaseLink.objects.count()
         self.stdout.write(self.style.SUCCESS(
             f"Done: {len(institutions)} institutions, {total_cases} cases, "
-            f"{total_links} overlap links, {overlap_count} planted overlap institutions."
+            f"{total_links} detected links, {overlap_count} planted overlap institutions, "
+                f"{conflict_count} planted conflict pairs, {negative_link_count} labelled no-link pairs."
         ))
 
     # -----------------------------------------------------------------------
@@ -218,7 +227,7 @@ class Command(BaseCommand):
         return bureau_objects
 
     def _create_status_mappings(self):
-        source_systems = list(BUREAUS.keys()) + ["DEMO"]
+        source_systems = list(BUREAUS.keys()) + ["DEMO", "MOCK_RB", "MOCK_PGRC"]
         for system in source_systems:
             for source_status, canonical in STATUS_MAPPING.items():
                 StatusMap.objects.update_or_create(
@@ -384,6 +393,7 @@ class Command(BaseCommand):
             # Pick 2 different bureaus.
             b1, b2 = rng.sample(bureau_codes, 2)
 
+            pair_cases = []
             for bureau_code in [b1, b2]:
                 bureau = bureau_objects[bureau_code]
                 category = rng.choice(CATEGORIES)
@@ -421,6 +431,7 @@ class Command(BaseCommand):
                         "sla_due_at": received_at + timedelta(days=30),
                     },
                 )
+                pair_cases.append(case)
 
                 CaseAction.objects.get_or_create(
                     case=case,
@@ -433,13 +444,104 @@ class Command(BaseCommand):
                     },
                 )
 
+            if len(pair_cases) == 2:
+                case_a, case_b = sorted(pair_cases, key=lambda case: case.pk)
+                SyntheticLinkLabel.objects.update_or_create(
+                    case_a=case_a, case_b=case_b, dataset="demo-links-v1",
+                    defaults={"expected_type": SyntheticLinkLabel.ExpectedType.OVERLAP},
+                )
+
         return len(overlap_institutions)
+
+    def _plant_conflicts(self, rng, institutions, bureau_objects):
+        """Plant labelled cross-bureau cases with contradictory synthetic actions."""
+        from complaints.models import CaseAction, ConflictRule
+
+        rule, _ = ConflictRule.objects.update_or_create(
+            name="No action versus show-cause notice",
+            defaults={
+                "action_type_a": "closed_no_action",
+                "action_type_b": "show_cause_notice",
+                "explanation": (
+                    "One bureau records closure without action while another records a show-cause notice."
+                ),
+                "is_active": True,
+            },
+        )
+        bureau_codes = list(bureau_objects.keys())
+        for index, institution in enumerate(institutions, start=1):
+            bureau_a, bureau_b = rng.sample(bureau_codes, 2)
+            pair = []
+            for bureau_code, suffix, category in [
+                (bureau_a, "A", "Approval or affiliation issue"),
+                (bureau_b, "B", "Approval or affiliation issue"),
+            ]:
+                case, _ = ComplaintCase.objects.update_or_create(
+                    source_system="DEMO",
+                    source_case_id=f"DEMO-CONFLICT-{institution.pk:04d}-{suffix}",
+                    defaults={
+                        "case_number": f"CON-{institution.pk:04d}-{suffix}",
+                        "institution": institution,
+                        "raw_institution_name": institution.name,
+                        "match_status": InstitutionMatchStatus.CONFIRMED,
+                        "match_confidence": 0.92,
+                        "bureau": bureau_objects[bureau_code],
+                        "category": category,
+                        "description": "Synthetic planted conflict for evaluation.",
+                        "source_status": "in progress",
+                        "status": CanonicalStatus.UNDER_PROCESS,
+                        "assigned_officer": rng.choice(OFFICERS),
+                        "received_at": timezone.now() - timedelta(days=40 + index),
+                        "next_action": "Review contradictory action history",
+                    },
+                )
+                pair.append(case)
+            created_at = timezone.now() - timedelta(days=5)
+            CaseAction.objects.update_or_create(
+                case=pair[0], action_type=rule.action_type_a,
+                defaults={"acted_at": created_at, "actor_label": "Synthetic seed",
+                          "remarks": "Synthetic closure recorded without action.",
+                          "from_bureau": pair[0].bureau},
+            )
+            CaseAction.objects.update_or_create(
+                case=pair[1], action_type=rule.action_type_b,
+                defaults={"acted_at": created_at, "actor_label": "Synthetic seed",
+                          "remarks": "Synthetic show-cause notice recorded.",
+                          "from_bureau": pair[1].bureau},
+            )
+            case_a, case_b = sorted(pair, key=lambda case: case.pk)
+            SyntheticLinkLabel.objects.update_or_create(
+                case_a=case_a, case_b=case_b, dataset="demo-links-v1",
+                defaults={"expected_type": SyntheticLinkLabel.ExpectedType.CONFLICT},
+            )
+        return len(institutions)
+
+    def _plant_negative_link_labels(self, rng, cases, target_count):
+        """Label sampled cross-Bureau pairs from different institutions as negatives."""
+        eligible = [case for case in cases if case.institution_id]
+        created = 0
+        attempts = 0
+        max_attempts = target_count * 30
+        while created < target_count and attempts < max_attempts and len(eligible) > 1:
+            attempts += 1
+            case_a, case_b = rng.sample(eligible, 2)
+            if case_a.institution_id == case_b.institution_id or case_a.bureau_id == case_b.bureau_id:
+                continue
+            case_a, case_b = sorted((case_a, case_b), key=lambda case: case.pk)
+            _, was_created = SyntheticLinkLabel.objects.get_or_create(
+                case_a=case_a, case_b=case_b, dataset="demo-links-v1",
+                defaults={"expected_type": SyntheticLinkLabel.ExpectedType.NONE},
+            )
+            if was_created:
+                created += 1
+        return created
 
     def _run_detection(self):
         """Run overlap detection on all seeded data."""
-        from complaints.services.overlap import run_full_overlap_scan
+        from complaints.services.overlap import run_full_overlap_scan, sync_conflict_suggestions
         stats = run_full_overlap_scan()
+        conflict_links = sync_conflict_suggestions()
         self.stdout.write(
             f"  Overlap scan: {stats['institutions_scanned']} institutions, "
-            f"{stats['links_created']} links created."
+            f"{stats['links_created']} overlap links; {len(conflict_links)} conflict links."
         )
