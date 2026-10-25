@@ -574,13 +574,14 @@ def import_cases(request):
         if uploaded_file is None:
             messages.error(request, "Choose a CSV file to import.")
             return redirect("complaints:import")
+        import_started_at = timezone.now()
         try:
             result = import_cases_csv(uploaded_file)
         except CSVImportError as exc:
             messages.error(request, str(exc))
             return redirect("complaints:import")
         match_count = overlap_count = 0
-        unresolved = ComplaintCase.objects.filter(match_status=InstitutionMatchStatus.UNMATCHED, institution__isnull=True).exclude(raw_institution_name="")
+        unresolved = ComplaintCase.objects.filter(match_status=InstitutionMatchStatus.UNMATCHED, institution__isnull=True, updated_at__gte=import_started_at).exclude(raw_institution_name="")
         for case in unresolved:
             matched = resolve_institution(case)
             if matched and case.match_status in {InstitutionMatchStatus.EXACT_ID, InstitutionMatchStatus.CONFIRMED}:
