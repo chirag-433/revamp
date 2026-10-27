@@ -30,7 +30,7 @@
       <a href="{% url 'complaints:case_detail' link.case_b.pk %}"><strong>{{ link.case_b.case_number|default:link.case_b.source_case_id }}</strong><small>{{ link.case_b.bureau.code }} · {{ link.case_b.bureau.name }} · {{ link.case_b.institution.name|default:link.case_b.raw_institution_name }}</small></a>
     </div>
   </article>
-  {% empty %}<p class="empty">No potential overlapping cases are waiting for review.</p>{% endfor %}
+  {% empty %}<div class="empty-state"><strong>No overlap suggestions need review</strong><p>Potential cross-bureau cases appear here when matching finds cases for the same institution.</p><a class="button button-sm" href="{% url 'complaints:case_list' %}">Open case register</a></div>{% endfor %}
 </section>
 
 <section class="panel overlap-panel" aria-labelledby="borderline-title">
@@ -49,7 +49,7 @@
       <button class="button" type="submit">Confirm match</button>
     </form>{% endif %}
   </article>
-  {% empty %}<p class="empty">No borderline institution matches need review.</p>{% endfor %}
+  {% empty %}<div class="empty-state"><strong>No institution matches need review</strong><p>New uncertain institution matches appear here after case imports.</p><a class="button button-sm" href="{% url 'complaints:import' %}">Import CSV</a></div>{% endfor %}
 </section>
 
 {% if can_edit %}

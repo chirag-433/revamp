@@ -612,3 +612,46 @@ table td:has(.button-sm) {
   white-space: nowrap !important;
 }
 
+
+
+/* Task shortcuts, helpful empty states, form guidance, and accessible focus */
+.task-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:min(1380px,100%);margin:20px auto 0;padding:0 32px}
+.task-shortcuts>a{position:relative;display:grid;gap:4px;min-height:76px;padding:14px 42px 14px 16px;border:1px solid #dce8de;border-radius:9px;background:#fffefa;color:#263c31;text-decoration:none;box-shadow:var(--shadow);transition:border-color .16s ease,background .16s ease,transform .16s ease}
+.task-shortcuts>a:hover{border-color:#8bbd96;background:#f7fbf7;transform:translateY(-1px)}
+.task-shortcuts strong{font-size:13px;color:#214c36}
+.task-shortcuts span:not(.task-shortcut-arrow){font-size:11px;color:#68786d}
+.task-shortcut-arrow{position:absolute;right:16px;top:50%;color:#33774a;font-size:19px;transform:translateY(-50%)}
+.empty-state{display:grid;justify-items:center;gap:8px;padding:12px;text-align:center}
+.empty-state strong{color:#344a3b;font-size:14px}
+.empty-state p{max-width:520px;margin:0 0 4px;color:#586b5e;font-size:12px;line-height:1.55}
+.alert-empty-state{border-color:#dce8de;border-left-color:#5b9b69;background:#f8fbf8}
+.alert-empty-state h2{color:#234a34}
+.alert-empty-state p:not(.eyebrow){color:#586b5e}
+.required-marker{color:#a33b2f;font-weight:800}
+.upload-form .form-help{margin:-4px 0 5px;color:#52685a;font-size:12px}
+.required-columns{display:flex;flex-wrap:wrap;gap:7px}
+.required-columns code{padding:5px 7px;border-radius:5px;background:#f0f4ef;color:#294d37}
+.import-errors{border-color:#e7c1b9;border-left:4px solid #b84838;background:#fffaf9}
+.error-list{display:grid;gap:8px;margin:10px 0 0;padding-left:30px;color:#73382f}
+.error-list li{padding:8px 10px;border-radius:6px;background:#fff0ed;font-size:12px;line-height:1.5}
+.import-success{margin:16px 0;border:1px solid #cfe4d2;border-radius:8px;background:#f4faf4}
+.sla-chip{display:inline-flex;align-items:center;min-height:24px;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap}
+.sla-overdue{background:#fde9e6;color:#84291f}
+.sla-due-soon{background:#fff2d8;color:#684800}
+.sla-on-track{background:#e8f3e9;color:#285d39}
+.sla-closed{background:#e9eef1;color:#465761}
+.sla-none{background:#f0f1ed;color:#555f54}
+.status{font-size:11px;padding:4px 9px}
+.status-pending{background:#fff0ce;color:#694b0b}
+.status-under_process{background:#e8f2f7;color:#31596c}
+.status-disposed{background:#e7f1e8;color:#2e6339}
+.status-transferred{background:#edf0f2;color:#45555e}
+.status-escalated{background:#fde8e4;color:#872f25}
+.skip-link{position:fixed;z-index:12000;top:8px;left:8px;padding:10px 14px;border-radius:6px;background:#173c32;color:#fff;font-weight:750;text-decoration:none;transform:translateY(-160%)}
+.skip-link:focus{transform:translateY(0);outline:3px solid #d9b65e;outline-offset:2px}
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid #236743;outline-offset:3px}
+.filter-panel input,.filter-panel select,.upload-form input[type=file]{min-height:44px}
+.button,.filter-panel button{min-height:44px}
+@media(max-width:980px){.task-shortcuts{padding-left:22px;padding-right:22px}}
+@media(max-width:700px){.task-shortcuts{grid-template-columns:1fr;padding-left:15px;padding-right:15px}.task-shortcuts>a{min-height:68px}.filter-panel{align-items:stretch}.filter-panel label{flex-basis:100%;min-width:0}.filter-panel .button,.filter-panel .text-link{width:100%;justify-content:center;text-align:center}.table-wrap{overflow-x:auto}.table-wrap table{min-width:760px}.empty-state{padding:8px 4px}}
+@media(prefers-reduced-motion:reduce){.task-shortcuts>a{transition:none}}

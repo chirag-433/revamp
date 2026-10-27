@@ -238,6 +238,8 @@ def case_list(request):
         "categories": ComplaintCase.objects.exclude(category="").values_list(
             "category", flat=True).distinct().order_by("category"),
         "statuses": CanonicalStatus.choices,
+        "sla_now": now,
+        "sla_soon_cutoff": now + timedelta(days=3),
         "filters": filters,
         "filters_query": filters_query.urlencode(),
         "total_cases": _scope_cases(request.user, ComplaintCase.objects.all()).count(),

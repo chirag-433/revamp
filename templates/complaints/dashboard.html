@@ -14,6 +14,12 @@
   <div class="hero-caption"><span class="caption-line"></span><span>AICTE SAKSHAM</span><small>Connected teams. Clearer follow-up.</small></div>
 </section>
 
+<nav class="task-shortcuts" aria-label="Common tasks">
+  <a href="{% url 'complaints:case_list' %}"><strong>Find a case</strong><span>Search the case register</span><span class="task-shortcut-arrow" aria-hidden="true">→</span></a>
+  <a href="{% url 'complaints:import' %}"><strong>Import CSV</strong><span>Add or update case records</span><span class="task-shortcut-arrow" aria-hidden="true">→</span></a>
+  <a href="{% url 'complaints:case_list' %}?sla=overdue"><strong>Review alerts</strong><span>{{ overdue_cases }} overdue · {{ due_soon_cases }} due soon</span><span class="task-shortcut-arrow" aria-hidden="true">→</span></a>
+</nav>
+
 <div class="dashboard-head section-intro">
   <div><p class="eyebrow">THE OPERATIONAL PICTURE <span class="eyebrow-rule"></span> CURRENT WORKLOAD</p><h2>Cases at a glance</h2><p class="lead">A live snapshot of the records in this demonstration workspace.</p></div>
   <span class="data-badge"><span></span> DEMONSTRATION DATA</span>
@@ -58,7 +64,7 @@
         <span class="priority-copy"><b>{{ case.priority_label }}</b><small>{{ case.priority_reasons|join:" · "|default:"No urgent signals" }}</small></span>
         <span aria-hidden="true">→</span>
       </a>
-      {% empty %}<p class="quiet-empty">Cases will appear here when records are imported.</p>{% endfor %}
+      {% empty %}<div class="empty-state"><strong>No cases in the priority queue</strong><p>Import case records to see unresolved matches, escalations, and deadline risks here.</p><a class="button button-sm" href="{% url 'complaints:import' %}">Import CSV</a></div>{% endfor %}
     </div>
     <p class="priority-note">Scores combine escalation, SLA risk, unresolved identity and inactivity. They support review; they never change a case automatically.</p>
   </article>
@@ -71,7 +77,7 @@
   </article>
 </section>
 
-{% if sla_alerts %}<section class="overlap-alert-panel sla-alert-panel" aria-labelledby="sla-alert-title"><div><p class="eyebrow">TIMELINE OVERSIGHT · SLA MONITOR</p><h2 id="sla-alert-title">Case alerts</h2><p>{{ overdue_cases }} overdue · {{ due_soon_cases }} due within 3 days.</p><a class="button button-sm" href="{% url 'complaints:case_list' %}?sla=overdue">Open overdue cases <span class="btn-arrow" aria-hidden="true">&rarr;</span></a></div><div class="alert-list">{% for alert in sla_alerts %}<a href="{% url 'complaints:case_detail' alert.case_id %}"><strong>{{ alert.case.case_number|default:alert.case.source_case_id }} · {{ alert.case.bureau.code }}</strong><span>{{ alert.get_alert_type_display }}{% if alert.case.sla_due_at %} · {{ alert.case.sla_due_at|date:"j M Y, H:i" }}{% endif %}</span></a>{% endfor %}</div></section>{% endif %}
+{% if sla_alerts %}<section class="overlap-alert-panel sla-alert-panel" aria-labelledby="sla-alert-title"><div><p class="eyebrow">TIMELINE OVERSIGHT · SLA MONITOR</p><h2 id="sla-alert-title">Case alerts</h2><p>{{ overdue_cases }} overdue · {{ due_soon_cases }} due within 3 days.</p><a class="button button-sm" href="{% url 'complaints:case_list' %}?sla=overdue">Open overdue cases <span class="btn-arrow" aria-hidden="true">&rarr;</span></a></div><div class="alert-list">{% for alert in sla_alerts %}<a href="{% url 'complaints:case_detail' alert.case_id %}"><strong>{{ alert.case.case_number|default:alert.case.source_case_id }} · {{ alert.case.bureau.code }}</strong><span>{{ alert.get_alert_type_display }}{% if alert.case.sla_due_at %} · {{ alert.case.sla_due_at|date:"j M Y, H:i" }}{% else %}<section class="overlap-alert-panel alert-empty-state" aria-label="SLA alerts"><div><p class="eyebrow">SLA MONITOR</p><h2>No active deadline alerts</h2><p>There are no overdue or due-soon cases in your current view.</p><a class="button button-sm" href="{% url 'complaints:case_list' %}">Open case register</a></div></section>{% endif %}</span></a>{% endfor %}</div></section>{% endif %}
 
 {% if overlap_links %}<section class="overlap-alert-panel" aria-labelledby="overlap-alert-title"><div><p class="eyebrow">COORDINATION REQUIRED</p><h2 id="overlap-alert-title">Potential Overlapping Cases - Coordination Required</h2><p>{{ overlap_links|length }} suggested cross-Bureau case pair{{ overlap_links|length|pluralize }} awaiting review.</p></div><div class="alert-list">{% for link in overlap_links %}<a href="{% url 'complaints:overlap_detail' link.pk %}"><strong>{{ link.case_a.case_number|default:link.case_a.source_case_id }} ↔ {{ link.case_b.case_number|default:link.case_b.source_case_id }}</strong><span>{{ link.explanation.severity|default:"Unrated" }} severity · {{ link.explanation.institution_confidence_display|default:"Not scored" }} confidence</span></a>{% endfor %}<a class="alert-more" href="{% url 'complaints:overlap_center' %}">Open Overlap Center →</a></div></section>{% elif overlap_alert_count %}<section class="overlap-alert-panel overlap-signin"><div><p class="eyebrow">COORDINATION REQUIRED</p><h2>Potential Overlapping Cases - Coordination Required</h2><p>Sign in with an authorized account to review overlap alerts and institution matches.</p></div><a class="button primary" href="{% url 'login' %}?next={% url 'complaints:overlap_center' %}">Sign in to review</a></section>{% endif %}{% if can_review_overlaps and borderline_match_count %}<p class="match-queue-link"><a href="{% url 'complaints:overlap_center' %}">{{ borderline_match_count }} borderline institution match{{ borderline_match_count|pluralize }} awaiting review →</a></p>{% endif %}
 {% if conflict_links %}<section class="overlap-alert-panel" aria-labelledby="conflict-alert-title"><div><p class="eyebrow">CONTRADICTORY ACTIONS</p><h2 id="conflict-alert-title">Conflict review</h2><p>{{ conflict_alert_count }} synthetic or configured action conflict{{ conflict_alert_count|pluralize }} await review.</p></div><div class="alert-list">{% for link in conflict_links %}<a href="{% url 'complaints:overlap_detail' link.pk %}"><strong>{{ link.case_a.case_number|default:link.case_a.source_case_id }} ↔ {{ link.case_b.case_number|default:link.case_b.source_case_id }}</strong><span>{{ link.explanation.reason }}</span></a>{% endfor %}<a class="alert-more" href="{% url 'complaints:overlap_center' %}?kind=conflict">Review action conflicts →</a></div></section>{% endif %}
@@ -151,7 +157,7 @@
         <td><span class="status status-{{ case.status }}">{{ case.get_status_display }}</span></td>
         <td class="date-cell">{% if case.received_at %}{{ case.received_at|date:"j M Y" }}{% else %}—{% endif %}</td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="empty">No cases yet. Import the synthetic demonstration CSV to populate the overview.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="6" class="empty"><div class="empty-state"><strong>No cases in the register yet</strong><p>Import the blank CSV template or synthetic example to get started.</p><a class="button button-sm primary" href="{% url 'complaints:import' %}">Import CSV</a></div></td></tr>{% endfor %}
     </tbody>
   </table></div>
 </section>

@@ -8,13 +8,17 @@
   <h2>Upload a CSV file</h2>
   <form method="post" enctype="multipart/form-data" class="upload-form">
     {% csrf_token %}
-    <label for="csv_file">CSV file <span class="muted">UTF-8, maximum 2 MB</span></label>
-    <input id="csv_file" type="file" name="csv_file" accept=".csv,text/csv" required>
+    <label for="csv_file">CSV file <span class="required-marker" aria-hidden="true">*</span><span class="muted">Required · UTF-8 CSV · maximum 2 MB</span></label>
+    <input id="csv_file" type="file" name="csv_file" accept=".csv,text/csv" aria-describedby="csv-file-help" required>
+    <p id="csv-file-help" class="form-help">The first row must contain the column names shown below. Keep the column names unchanged.</p>
     <button class="button primary" type="submit">Validate and import</button>
   </form>
 </section>
-<section class="panel"><div class="panel-heading"><h2>Required columns</h2></div><p>Each row needs <code>source_system</code>, <code>source_case_id</code>, <code>bureau_code</code>, <code>institution_name</code>, and <code>source_status</code>.</p><p>Statuses must already have a mapping for that source system. Bureau codes must exist and be active. Dates use ISO 8601 format.</p><p><a class="text-link" href="{% static 'sample_data/import_template.csv' %}">Download a blank CSV template</a> <span class="muted">·</span> <a class="text-link" href="{% static 'sample_data/demo_cases.csv' %}">Download the synthetic example CSV</a></p>
-<details><summary>Optional columns</summary><p><code>case_number</code>, <code>institution_permanent_id</code>, <code>category</code>, <code>description</code>, <code>assigned_officer</code>, <code>received_at</code>, <code>last_action_at</code>, <code>next_action</code>, <code>expected_disposal_at</code>, <code>sla_due_at</code>, <code>action_remarks</code>.</p></details></section>
+<section class="panel">
+  <div class="panel-heading"><h2>Required columns</h2><span class="muted"><span class="required-marker" aria-hidden="true">*</span> Required for every row</span></div>
+  <p class="required-columns"><code>source_system <span class="required-marker">*</span></code> <code>source_case_id <span class="required-marker">*</span></code> <code>bureau_code <span class="required-marker">*</span></code> <code>institution_name <span class="required-marker">*</span></code> <code>source_status <span class="required-marker">*</span></code></p>
+  <p>Status values need an existing mapping for the source system. Bureau codes must exist and be active. Date/time values must use ISO 8601, for example <code>2026-10-28T14:30:00+05:30</code>.</p>
+  <p><a class="text-link" href="{% static 'sample_data/import_template.csv' %}">Download a blank CSV template</a> <span class="muted">·</span> <a class="text-link" href="{% static 'sample_data/demo_cases.csv' %}">Download the synthetic example CSV</a></p>
+  <details><summary>Optional columns</summary><p><code>case_number</code>, <code>institution_permanent_id</code>, <code>category</code>, <code>description</code>, <code>assigned_officer</code>, <code>received_at</code>, <code>last_action_at</code>, <code>next_action</code>, <code>expected_disposal_at</code>, <code>sla_due_at</code>, <code>action_remarks</code>.</p></details>
+</section>
 {% endblock %}
-
-

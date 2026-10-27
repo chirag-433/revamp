@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'complaints/site.css' %}">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <div class="scroll-progress" data-scroll-progress aria-hidden="true"></div>
   <div class="institution-ribbon institution-ribbon-government"><span class="govt-emblem"><img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="State Emblem of India"></span><span class="govt-identity"><strong>Ministry of Education</strong><small>Government of India</small></span></div>
   <header class="topbar">
@@ -27,7 +28,7 @@
       <a class="admin-link" href="/admin/">Admin</a>
     </nav>
   </header>
-  <main class="container {% block main_class %}{% endblock %}">
+  <main id="main-content" tabindex="-1" class="container {% block main_class %}{% endblock %}">
     {% if messages %}
       <div class="messages" aria-live="polite">
         {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}

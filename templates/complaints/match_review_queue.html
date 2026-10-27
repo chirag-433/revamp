@@ -90,7 +90,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="{% if can_review %}6{% else %}5{% endif %}" class="empty">No pending fuzzy match suggestions in the queue. All cases are either confirmed, auto-matched, or unresolved.</td>
+          <td colspan="{% if can_review %}6{% else %}5{% endif %}" class="empty"><div class="empty-state"><strong>No suggested matches need review</strong><p>New uncertain matches appear after cases are imported and matched. Check the case register for unresolved institutions.</p><a class="button button-sm" href="{% url 'complaints:case_list' %}">Open case register</a></div></td>
         </tr>
         {% endfor %}
       </tbody>
