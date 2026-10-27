@@ -198,15 +198,15 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 }
 .helpdesk-avatar{
   display:grid;place-items:center;
-  width:42px;height:42px;border-radius:50%;
+  flex:0 0 42px;width:42px;height:42px;min-width:42px;border-radius:50%;
   background:#d5eadb;
   color:#fff;
   box-shadow:0 3px 14px rgba(0,0,0,.28),0 0 0 2px rgba(255,255,255,.15);
   flex-shrink:0;
   overflow:hidden;
 }
-.helpdesk-avatar svg{width:42px;height:42px}
-.helpdesk-panel-head>div{min-width:0;flex:1}
+.helpdesk-avatar svg{display:block;width:100%;height:100%;object-fit:contain}
+.helpdesk-panel-head>div:not(.helpdesk-avatar){min-width:0;flex:1}
 .helpdesk-panel-head strong{
   display:block;font-size:14px;font-weight:700;
   letter-spacing:-.015em;color:#fff;
@@ -267,6 +267,23 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
   border-radius:14px 14px 4px 14px;
   box-shadow:0 3px 12px rgba(18,61,53,.28);
 }
+
+.helpdesk-quick-actions{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  margin:0 0 4px;padding:0 2px 12px;
+}
+.helpdesk-quick-actions button{
+  min-height:38px;padding:8px 10px;border:1px solid #d7e6da;border-radius:10px;
+  background:#f6faf6;color:#28563d;text-align:left;font:650 11px/1.35 Inter,"Segoe UI",Arial,sans-serif;
+  cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.helpdesk-quick-actions button:hover:not(:disabled),.helpdesk-quick-actions button:focus-visible{
+  border-color:#6ea77d;background:#eaf5ec;transform:translateY(-1px);
+}
+.helpdesk-quick-actions button:focus-visible{outline:3px solid rgba(45,122,82,.2);outline-offset:2px}
+.helpdesk-quick-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:420px){.helpdesk-quick-actions{grid-template-columns:1fr}}
+
 .helpdesk-message.pending{
   color:#7b9082;font-style:italic;
   display:flex;align-items:center;gap:6px;
