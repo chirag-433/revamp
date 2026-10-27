@@ -23,7 +23,7 @@
             ({{ link.case_a.get_status_display }})
           {% endif %}
           — Review status: <span class="status status-{{ link.review_state }}">{{ link.get_review_state_display }}</span>
-          <a class="button button-sm" href="{% url 'complaints:overlap_detail' link.pk %}">Compare &amp; Coordinate →</a>
+          <a class="button button-sm" href="{% url 'complaints:overlap_detail' link.pk %}">Compare &amp; Coordinate <span class="btn-arrow" aria-hidden="true">&rarr;</span></a>
         </li>
       {% endfor %}
     </ul>
@@ -70,7 +70,7 @@
 {% endif %}
 {% if can_update_workflow %}
 <section class="panel workflow-update-panel" aria-labelledby="workflow-update-title">
-  <div class="panel-heading"><div><p class="eyebrow">PHASE 4B · SAKSHAM</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
+  <div class="panel-heading"><div><p class="eyebrow">CASE LIFECYCLE MANAGEMENT</p><h2 id="workflow-update-title">Record a case update</h2></div></div>
   <p class="muted">This creates a time-stamped history entry and records the status and next step.</p>
   <form method="post" action="{% url 'complaints:record_case_action' case.pk %}" class="workflow-form">
     {% csrf_token %}

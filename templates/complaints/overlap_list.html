@@ -45,7 +45,7 @@
           <th>Case B (Bureau)</th>
           <th>State</th>
           <th>Detected</th>
-          <th style="text-align: right;">Action</th>
+          <th style="text-align: right; min-width: 175px;">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -85,9 +85,9 @@
           <td>
             <small>{{ link.created_at|date:"j M Y, H:i" }}</small>
           </td>
-          <td style="text-align: right;">
-            <a class="button button-sm primary" href="{% url 'complaints:overlap_detail' link.pk %}">
-              Review &amp; Compare →
+          <td style="text-align: right; white-space: nowrap;">
+            <a class="button button-sm primary review-btn" href="{% url 'complaints:overlap_detail' link.pk %}">
+              Review &amp; Compare <span class="btn-arrow" aria-hidden="true">&rarr;</span>
             </a>
           </td>
         </tr>

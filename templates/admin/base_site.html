@@ -3,6 +3,19 @@
 
 {% block title %}{{ title }} | AICTE SAKSHAM Administration{% endblock %}
 
+{% block dark-mode-vars %}{# Disabled Django dark mode in favor of unified AICTE theme #}{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'complaints/favicon-32x32.png' %}">
+  <link rel="icon" type="image/x-icon" href="{% static 'complaints/favicon.ico' %}">
+  <link rel="shortcut icon" href="{% static 'complaints/favicon.ico' %}">
+  <script>
+    document.documentElement.dataset.theme = 'light';
+    try { localStorage.setItem('theme', 'light'); } catch (e) {}
+  </script>
+{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'complaints/admin_theme.css' %}">
@@ -19,3 +32,4 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
