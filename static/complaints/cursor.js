@@ -9,6 +9,7 @@
   let pointerX = -100;
   let pointerY = -100;
 
+  document.documentElement.classList.add("has-cursor-overlay");
   document.body.classList.add("has-cursor-overlay");
 
   document.addEventListener("pointermove", (event) => {
@@ -51,7 +52,11 @@
 
   window.addEventListener("blur", () => overlay.classList.remove("is-visible", "is-active"));
   finePointer.addEventListener("change", (event) => {
-    if (!event.matches) {
+    if (event.matches) {
+      document.documentElement.classList.add("has-cursor-overlay");
+      document.body.classList.add("has-cursor-overlay");
+    } else {
+      document.documentElement.classList.remove("has-cursor-overlay");
       document.body.classList.remove("has-cursor-overlay");
       overlay.classList.remove("is-visible", "is-active");
     }

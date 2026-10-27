@@ -9,6 +9,11 @@
   <link rel="icon" type="image/x-icon" href="{% static 'complaints/favicon.ico' %}">
   <link rel="shortcut icon" href="{% static 'complaints/favicon.ico' %}">
   <link rel="apple-touch-icon" sizes="192x192" href="{% static 'complaints/favicon-192x192.png' %}">
+  <script>
+    if (window.matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)").matches) {
+      document.documentElement.classList.add("has-cursor-overlay");
+    }
+  </script>
   <link rel="stylesheet" href="{% static 'complaints/site.css' %}">
 </head>
 <body>
