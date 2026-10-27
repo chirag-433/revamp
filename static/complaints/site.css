@@ -26,7 +26,25 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 .ribbon-seal{display:grid;place-items:center;width:19px;height:19px;border:1px solid #79a989;border-radius:50%;font-size:11px;color:#326f4e}.institution-ribbon i{width:1px;height:14px;background:#bbd7c3}.ribbon-note{margin-left:auto;color:#718b79;font-size:9px;letter-spacing:.14em}
 .topbar{min-height:90px;height:auto;padding:12px max(30px,calc((100% - 1380px)/2));background:#fff;color:var(--ink);border-bottom:1px solid #edf0eb;box-shadow:0 3px 15px rgba(22,55,45,.035)}
 .brand{gap:14px;color:var(--ink);font-size:14px;letter-spacing:.09em}.brand-mark{width:68px;height:68px;border:0;border-radius:50%;background:transparent;color:#27724f}.brand-mark svg{width:29px;height:29px}.brand-copy small{color:#496b5c;font-size:11px;letter-spacing:.02em}
-.topbar nav{gap:5px;display:flex;align-items:center}.topbar nav a{padding:10px 13px;border-radius:6px;color:#4c6257;font-size:13px;font-weight:650;text-decoration:none}.topbar nav a[aria-current=page]{background:#e9f4eb;color:#236743}.topbar nav a:hover,.topbar nav a:focus{background:#f1f7f2;color:#1a6344}.topbar nav .admin-link{margin-left:10px;padding:9px 16px;border:1px solid #184c37;border-radius:6px;background:#205e42;color:#ffffff!important;font-weight:750;text-decoration:none;box-shadow:0 2px 7px rgba(32,94,66,.25);transition:all .16s ease}.topbar nav .admin-link:hover{background:#174933!important;color:#ffffff!important;transform:translateY(-1px);box-shadow:0 4px 12px rgba(32,94,66,.35)}
+.topbar nav{gap:5px;display:flex;align-items:center;flex-wrap:nowrap}
+.topbar nav a,
+.topbar nav .nav-button,
+.topbar nav .admin-link{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  height:38px!important;min-height:38px!important;max-height:38px!important;
+  padding:0 12px!important;border-radius:7px!important;white-space:nowrap!important;
+  font-size:13px!important;font-weight:650!important;line-height:1!important;
+  box-sizing:border-box!important;vertical-align:middle!important;text-decoration:none!important;
+  transition:all .16s ease!important;
+}
+.topbar nav a{color:#41584b!important;background:transparent!important;border:1px solid transparent!important}
+.topbar nav a[aria-current=page]{background:#e7f4eb!important;color:#1e623f!important;border-color:#c8e3cf!important;font-weight:750!important}
+.topbar nav a:hover:not([aria-current=page]),.topbar nav a:focus{background:#f1f7f2!important;color:#175f3c!important}
+.topbar nav .nav-form{display:inline-flex!important;align-items:center!important;margin:0!important;padding:0!important;height:38px!important}
+.topbar nav .nav-button{border:1px solid #d4dfd7!important;background:#ffffff!important;color:#2c4c3b!important;cursor:pointer!important;padding:0 14px!important;margin:0!important}
+.topbar nav .nav-button:hover{background:#fef2f2!important;color:#991b1b!important;border-color:#fca5a5!important}
+.topbar nav .admin-link{margin-left:6px!important;border:1px solid #184c37!important;background:#205e42!important;color:#ffffff!important;font-weight:750!important;padding:0 16px!important;box-shadow:0 2px 7px rgba(32,94,66,.22)!important}
+.topbar nav .admin-link:hover{background:#174933!important;color:#ffffff!important;transform:translateY(-1px)!important;box-shadow:0 4px 12px rgba(32,94,66,.32)!important}
 .container.dashboard-container{max-width:none;margin:0;padding:0;min-height:0}
 .dashboard-container>.dashboard-hero{position:relative;isolation:isolate;display:flex;align-items:center;min-height:485px;overflow:hidden;padding:52px max(32px,calc((100% - 1380px)/2));background:#d9e7dc url("campus-hero.jpg") center 54%/cover no-repeat}
 .dashboard-container>.dashboard-hero:before{position:absolute;z-index:-1;inset:0;content:"";background:linear-gradient(90deg,rgba(247,250,247,.98) 0%,rgba(247,250,247,.94) 34%,rgba(247,250,247,.7) 53%,rgba(247,250,247,.12) 78%,rgba(247,250,247,.04) 100%),linear-gradient(0deg,rgba(16,53,42,.14),transparent 30%)}
@@ -449,7 +467,13 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 .scroll-progress{position:fixed;z-index:10000;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,#5ebc75,#d3b566);transform:scaleX(0);transform-origin:left;transition:transform .08s linear}.nav-toggle{display:none}
 .back-to-top{position:fixed;z-index:8500;right:38px;bottom:140px;display:grid;place-items:center;width:42px;height:42px;border:1.5px solid #c9decb;border-radius:50%;background:#fff;color:#1e4a38;box-shadow:0 6px 18px rgba(21,65,46,.18);cursor:pointer;font-size:20px;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s ease,transform .2s ease}
 .back-to-top.is-visible{opacity:1;pointer-events:auto;transform:translateY(0)}.back-to-top:hover{background:#1e4a38;color:#fff;border-color:#1e4a38;transform:translateY(-2px)}
-.topbar{position:sticky;top:0;z-index:800;box-shadow:0 1px 0 rgba(31,69,52,.08);backdrop-filter:blur(14px)}.topbar nav a{position:relative}.topbar nav a:not(.admin-link)::after{position:absolute;right:10px;bottom:5px;left:10px;height:2px;border-radius:3px;background:#72ad75;content:"";opacity:0;transform:scaleX(.45);transition:opacity .18s ease,transform .18s ease}.topbar nav a:hover::after,.topbar nav a[aria-current="page"]::after{opacity:1;transform:scaleX(1)}.workload-card,.surface,.workflow-step{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.workload-card:hover,.surface:hover{border-color:#cde0d0;box-shadow:0 13px 32px rgba(29,82,53,.11);transform:translateY(-3px)}.workflow-step:hover{transform:translateY(-4px);box-shadow:0 12px 25px rgba(52,102,62,.12)}.reveal-on-scroll{opacity:0;transform:translateY(16px);transition:opacity .48s ease,transform .48s cubic-bezier(.2,.8,.25,1)}.reveal-on-scroll.is-revealed{opacity:1;transform:translateY(0)}
+.topbar{position:sticky;top:0;z-index:800;box-shadow:0 1px 0 rgba(31,69,52,.08);backdrop-filter:blur(14px)}.topbar nav a::after{display:none!important}.workload-card,.surface,.workflow-step{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.workload-card:hover,.surface:hover{border-color:#cde0d0;box-shadow:0 13px 32px rgba(29,82,53,.11);transform:translateY(-3px)}.workflow-step:hover{transform:translateY(-4px);box-shadow:0 12px 25px rgba(52,102,62,.12)}.reveal-on-scroll{opacity:0;transform:translateY(16px);transition:opacity .48s ease,transform .48s cubic-bezier(.2,.8,.25,1)}.reveal-on-scroll.is-revealed{opacity:1;transform:translateY(0)}
+@media(min-width:781px) and (max-width:1320px){
+  .topbar{padding:10px 16px!important;gap:12px!important}
+  .topbar nav{gap:3px!important}
+  .topbar nav a,.topbar nav .nav-button{padding:0 8px!important;font-size:12px!important;height:36px!important;min-height:36px!important;max-height:36px!important}
+  .topbar nav .admin-link{padding:0 12px!important;font-size:12px!important;height:36px!important;min-height:36px!important;max-height:36px!important}
+}
 @media(max-width:780px){.topbar{position:sticky;min-height:64px}.back-to-top{right:26px;bottom:124px;width:38px;height:38px}.nav-toggle{display:grid;gap:4px;margin-left:auto;width:38px;height:38px;padding:10px;border:1px solid #d6e4d8;border-radius:8px;background:#fff;color:#285b40;cursor:pointer}.nav-toggle>span:not(.sr-only){display:block;height:2px;border-radius:2px;background:currentColor;transition:transform .2s ease,opacity .2s ease}.topbar nav{position:absolute;top:calc(100% + 8px);right:14px;left:14px;display:grid;gap:2px;padding:9px;border:1px solid #dbe7dd;border-radius:12px;background:rgba(255,255,255,.98);box-shadow:0 16px 36px rgba(23,66,46,.16);opacity:0;visibility:hidden;transform:translateY(-8px);transition:opacity .2s ease,transform .2s ease,visibility .2s ease}.topbar nav a,.topbar nav .nav-button{display:block;width:100%;padding:11px 12px;border-radius:7px;color:#244434;text-align:left}.topbar nav .nav-button{background:transparent}.topbar nav .admin-link{margin:6px 0 0;text-align:center;background:#205e42;color:#ffffff!important;border:1px solid #184c37;padding:10px 14px}.nav-open .topbar nav{opacity:1;visibility:visible;transform:translateY(0)}.nav-open .nav-toggle>span:nth-child(1){transform:translateY(6px) rotate(45deg)}.nav-open .nav-toggle>span:nth-child(2){opacity:0}.nav-open .nav-toggle>span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}.reveal-on-scroll{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){.scroll-progress{transition:none}.reveal-on-scroll{opacity:1;transform:none}.workload-card:hover,.surface:hover,.workflow-step:hover,.back-to-top:hover{transform:none}}
 
 /* Brand logo & Auth styling */
@@ -541,44 +565,36 @@ body{background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",Aria
 }
 
 .report-export-actions .button.export-btn,
+.report-export-actions .button.export-btn.primary,
 .inline-actions .button {
-  background: #ffffff;
-  color: #2e4438;
-  border: 1.5px solid #cbd5cf;
-  font-weight: 700;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 13px;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  white-space: nowrap;
+  background: #ffffff !important;
+  color: #2e4438 !important;
+  border: 1.5px solid #cbd5cf !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+  white-space: nowrap !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 .report-export-actions .button.export-btn:hover,
 .report-export-actions .button.export-btn:focus,
 .report-export-actions .button.export-btn:active,
+.report-export-actions .button.export-btn.primary:hover,
+.report-export-actions .button.export-btn.primary:focus,
+.report-export-actions .button.export-btn.primary:active,
 .inline-actions .button:hover,
 .inline-actions .button:focus,
 .inline-actions .button:active {
   background: var(--rust) !important;
   border-color: var(--rust) !important;
   color: #ffffff !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(184, 83, 61, 0.28);
-}
-
-.report-export-actions .button.export-btn.primary,
-.inline-actions .button.primary {
-  background: var(--rust) !important;
-  border-color: var(--rust) !important;
-  color: #ffffff !important;
-}
-
-.report-export-actions .button.export-btn.primary:hover,
-.inline-actions .button.primary:hover {
-  background: #9c3f2b !important;
-  border-color: #9c3f2b !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(184, 83, 61, 0.28) !important;
 }
 
 /* Arrow alignment & zoom resilience */

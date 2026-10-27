@@ -322,6 +322,227 @@ input[type=text]:focus, input[type=password]:focus, textarea:focus, select:focus
   text-decoration: underline !important;
 }
 
+/* Dashboard Modern Two-Column Layout */
+.dashboard #content {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 32px !important;
+  max-width: 1440px !important;
+  margin: 0 auto !important;
+  padding: 24px 32px 48px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+.dashboard #content.colMS {
+  margin-right: 0 !important;
+}
+
+.dashboard #content-main {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  float: none !important;
+  width: auto !important;
+}
+
+.dashboard #content-related {
+  flex: 0 0 380px !important;
+  width: 380px !important;
+  max-width: 380px !important;
+  float: none !important;
+  margin: 0 !important;
+  position: static !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+}
+
+/* Quick Operations Hub */
+.admin-quick-hub {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 10px !important;
+  padding: 20px 22px !important;
+  margin-bottom: 24px !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-hub-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  margin-bottom: 16px !important;
+  border-bottom: 1px solid #edf2ee !important;
+  padding-bottom: 12px !important;
+}
+
+.admin-hub-badge {
+  display: inline-block !important;
+  font-size: 9.5px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.1em !important;
+  color: #1e6141 !important;
+  background: #e8f5ec !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  margin-bottom: 5px !important;
+}
+
+.admin-hub-head h2 {
+  margin: 0 !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  color: #15382a !important;
+  letter-spacing: -0.015em !important;
+}
+
+.admin-hub-meta {
+  font-size: 11px !important;
+  color: #64746b !important;
+  font-weight: 550 !important;
+}
+
+.admin-quick-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.admin-quick-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 12px 14px !important;
+  background: #fbfdfc !important;
+  border: 1px solid #e0ebe3 !important;
+  border-radius: 8px !important;
+  text-decoration: none !important;
+  transition: all 0.16s ease !important;
+}
+
+.admin-quick-card:hover {
+  background: #f0f7f2 !important;
+  border-color: #236743 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(35, 103, 67, 0.12) !important;
+}
+
+.admin-quick-icon {
+  font-size: 20px !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  border: 1px solid #d5e5da !important;
+  flex-shrink: 0 !important;
+}
+
+.admin-quick-card strong {
+  display: block !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  color: #1a3327 !important;
+  line-height: 1.25 !important;
+}
+
+.admin-quick-card small {
+  display: block !important;
+  font-size: 10.5px !important;
+  color: #64746b !important;
+  margin-top: 3px !important;
+  line-height: 1.35 !important;
+}
+
+/* System Status & Governance Module */
+.admin-status-module {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
+}
+
+.admin-status-module h2 {
+  background: #edf5ef !important;
+  color: #123d2e !important;
+  font-weight: 850 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.05em !important;
+  padding: 13px 18px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #dbe4dc !important;
+}
+
+.admin-status-body {
+  padding: 16px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.admin-status-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid #f0f4f1 !important;
+}
+
+.admin-status-row:last-of-type {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.status-indicator-dot {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  margin-top: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+.status-indicator-dot.online {
+  background: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2) !important;
+}
+
+.admin-status-row strong {
+  display: block !important;
+  font-size: 12.5px !important;
+  font-weight: 750 !important;
+  color: #1b382b !important;
+}
+
+.admin-status-row small {
+  display: block !important;
+  font-size: 11px !important;
+  color: #64746b !important;
+  margin-top: 2px !important;
+}
+
+.admin-status-meta {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-top: 6px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #eef3ef !important;
+  font-size: 11.5px !important;
+  color: #55685f !important;
+}
+
+.admin-empty-note {
+  padding: 16px 18px !important;
+  color: #718279 !important;
+  font-size: 12px !important;
+  margin: 0 !important;
+}
+
 /* Recent Actions sidebar on dashboard */
 #content-related {
   background: transparent !important;
@@ -329,17 +550,32 @@ input[type=text]:focus, input[type=password]:focus, textarea:focus, select:focus
 
 #content-related .module {
   background: #ffffff !important;
-  border: 1px solid #dbe4dc !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
 }
 
-#content-related h2,
-#content-related h3 {
+#content-related h2 {
   background: #edf5ef !important;
   color: #123d2e !important;
   font-weight: 850 !important;
-  font-size: 13.5px !important;
+  font-size: 13px !important;
   letter-spacing: 0.05em !important;
-  padding: 14px 18px !important;
+  padding: 13px 18px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #dbe4dc !important;
+}
+
+#content-related h3 {
+  background: #fafcfa !important;
+  color: #1e4a38 !important;
+  font-weight: 750 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.03em !important;
+  padding: 10px 18px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #eef3ef !important;
 }
 
 #content-related .module p,
@@ -350,11 +586,50 @@ input[type=text]:focus, input[type=password]:focus, textarea:focus, select:focus
   font-size: 13px !important;
 }
 
-#content-related .module h4,
-#content-related .module h3.action-heading {
-  color: #1f4231 !important;
-  font-size: 12px !important;
-  font-weight: 750 !important;
+#content-related .actionlist {
+  padding: 12px 18px !important;
+  margin: 0 !important;
+  list-style: none !important;
+}
+
+#content-related .actionlist li {
+  padding: 8px 0 !important;
+  border-bottom: 1px solid #f1f5f2 !important;
+}
+
+#content-related .actionlist li:last-child {
+  border-bottom: none !important;
+}
+
+#content-related .actionlist a {
+  color: #1e4a38 !important;
+  font-weight: 650 !important;
+  text-decoration: none !important;
+}
+
+#content-related .actionlist a:hover {
+  text-decoration: underline !important;
+}
+
+@media (max-width: 1024px) {
+  .dashboard #content {
+    flex-direction: column !important;
+    padding: 16px 20px !important;
+  }
+  .dashboard #content-related {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .admin-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-quick-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Dedicated Admin Login Page Styling */

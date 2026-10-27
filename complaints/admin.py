@@ -67,6 +67,9 @@ class CaseActionAdmin(admin.ModelAdmin):
     search_fields = ("case__case_number", "remarks", "actor_label")
     date_hierarchy = "acted_at"
 
+    def has_view_permission(self, request, obj=None):
+        return True
+
     def has_add_permission(self, request):
         return False
 
@@ -84,6 +87,9 @@ class SlaAlertAdmin(admin.ModelAdmin):
     search_fields = ("case__case_number", "case__source_case_id")
     readonly_fields = ("case", "alert_type", "opened_at", "resolved_at")
 
+    def has_view_permission(self, request, obj=None):
+        return True
+
     def has_add_permission(self, request):
         return False
 
@@ -100,6 +106,9 @@ class SyntheticMatchLabelAdmin(admin.ModelAdmin):
     list_filter = ("dataset",)
     search_fields = ("case__case_number", "expected_institution__name")
 
+    def has_view_permission(self, request, obj=None):
+        return True
+
     def has_add_permission(self, request):
         return False
 
@@ -115,6 +124,9 @@ class SyntheticLinkLabelAdmin(admin.ModelAdmin):
     list_display = ("case_a", "case_b", "expected_type", "dataset")
     list_filter = ("expected_type", "dataset")
     readonly_fields = ("case_a", "case_b", "expected_type", "dataset")
+
+    def has_view_permission(self, request, obj=None):
+        return True
 
     def has_add_permission(self, request):
         return False
@@ -163,6 +175,9 @@ class AuditLogAdmin(admin.ModelAdmin):
     search_fields = ("entity_type", "entity_id", "action")
     readonly_fields = ("actor", "action", "entity_type", "entity_id", "occurred_at", "details")
 
+    def has_view_permission(self, request, obj=None):
+        return True
+
     def has_add_permission(self, request):
         return False
 
@@ -180,6 +195,9 @@ class CoordinationMessageAdmin(admin.ModelAdmin):
     list_filter = ("mentioned_bureau", "created_at")
     readonly_fields = ("link", "author", "mentioned_bureau", "body", "created_at")
 
+    def has_view_permission(self, request, obj=None):
+        return True
+
     def has_add_permission(self, request):
         return False
 
@@ -194,6 +212,9 @@ class CoordinationMessageAdmin(admin.ModelAdmin):
 class CoordinationNotificationAdmin(admin.ModelAdmin):
     list_display = ("recipient", "message", "created_at", "read_at")
     readonly_fields = ("recipient", "message", "created_at", "read_at")
+
+    def has_view_permission(self, request, obj=None):
+        return True
 
     def has_add_permission(self, request):
         return False
