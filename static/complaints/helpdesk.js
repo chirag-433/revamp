@@ -5,7 +5,9 @@
   const input = root.querySelector("[data-helpdesk-input]");
   const form = root.querySelector("[data-helpdesk-form]");
   const messages = root.querySelector("[data-helpdesk-messages]");
-  const csrf = form?.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
+  const sendButton = form.querySelector("button");
+  const quickActions = root.querySelectorAll("[data-helpdesk-prompt]");
+  const csrf = form.querySelector("input[name=csrfmiddlewaretoken]")?.value || "";
 
   root.querySelector("[data-helpdesk-open]").addEventListener("click", function () {
     if (panel.hidden) {
@@ -24,14 +26,24 @@
       form.requestSubmit();
     }
   });
-  form.addEventListener("submit", async function (event) {
+  form.addEventListener("submit", function (event) {
     event.preventDefault();
-    const message = input.value.trim();
-    if (!message) return;
+    sendMessage(input.value);
+  });
+  quickActions.forEach(function (button) {
+    button.addEventListener("click", function () {
+      sendMessage(button.dataset.helpdeskPrompt);
+    });
+  });
+
+  async function sendMessage(value) {
+    const message = value.trim();
+    if (!message || input.disabled) return;
     addMessage(message, "user");
     input.value = "";
     input.disabled = true;
-    form.querySelector("button").disabled = true;
+    sendButton.disabled = true;
+    quickActions.forEach((button) => { button.disabled = true; });
     const pending = addMessage("Thinking...", "assistant pending");
     try {
       const response = await fetch("/api/ai-helpdesk/", {
@@ -47,10 +59,11 @@
       pending.classList.remove("pending");
     } finally {
       input.disabled = false;
-      form.querySelector("button").disabled = false;
+      sendButton.disabled = false;
+      quickActions.forEach((button) => { button.disabled = false; });
       input.focus();
     }
-  });
+  }
 
   function addMessage(text, className) {
     const message = document.createElement("div");
