@@ -1,231 +1,203 @@
-# SAKSHAM · AICTE Institution Grievance Monitor
+# SAKSHAM — AICTE Institution Grievance Monitor
 
-<div align="center">
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-saksham--aicte.onrender.com-2ea44f)](https://saksham-aicte.onrender.com/)
+[![Django](https://img.shields.io/badge/Django-5.2-092E20)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-gold)](LICENSE)
 
-![SAKSHAM Emblem](static/complaints/logo.png)
+[Live application](https://saksham-aicte.onrender.com/) · [Architecture](docs/ARCHITECTURE.md) · [Requirements traceability](docs/REQUIREMENTS_TRACEABILITY.md)
 
-**A Unified National Grievance Monitoring, Identity Resolution & Cross-Bureau Overlap Coordination Platform**
+## Project description
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-saksham--aicte.onrender.com-2ea44f?style=for-the-badge&logo=render)](https://saksham-aicte.onrender.com/)
-[![Django](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django)](https://www.djangoproject.com/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-gold?style=for-the-badge)](LICENSE)
+SAKSHAM is a Django prototype for viewing and coordinating institution-related grievance cases across AICTE Bureaus and Cells. It brings case records into one workspace so officers can track status and deadlines, review institution matches, and identify cases that may need cross-bureau coordination.
 
-[🌐 Access Live Application](https://saksham-aicte.onrender.com/) · [📖 Architecture Docs](docs/ARCHITECTURE.md) · [📊 Requirements Traceability](docs/REQUIREMENTS_TRACEABILITY.md)
+The prototype supports CSV case imports, duplicate-safe source identifiers, canonical status mapping, institution matching, overlap review, case action history, transfer requests, SLA alerts, coordination messages, and report exports. Disha, the AI help assistant, provides general guidance on using the application; it does not read or answer questions from live case records.
 
-</div>
+The repository contains synthetic demonstration data. It does not connect to live AICTE systems or write back to source systems. Validate requirements against the official problem statement before treating the prototype as a production system.
 
----
+## Dashboard preview
 
-## 📌 Overview
+![SAKSHAM dashboard](docs/assets/dashboard_preview.png)
 
-**SAKSHAM** is an institutional casework and grievance coordination platform developed for the **All India Council for Technical Education (AICTE)**, Ministry of Education, Government of India.
+## Features
 
-AICTE handles grievance intake and compliance casework across distinct functional Bureaus and Cells:
-- **Approval Bureau (AB)**: Extension of Approval (EoA), land/infrastructure compliance, intake sanctions.
-- **Policy & Academic Planning Bureau**: Curriculum norms, faculty regulations, academic grievances.
-- **Public Grievance Redressal Cell (PGRC)**: Student, parent, and faculty complaints.
-- **Regional Offices / Regional Bureaus (RB)**: Inspection follow-ups, state-level verification, operational enforcement.
+### Case intake and tracking
 
-Previously, grievances against the same institution could be lodged simultaneously across multiple channels without cross-Bureau visibility, leading to duplicated effort, inconsistent status determinations, and missed SLA deadlines.
+- Import cases from CSV with required-column, bureau, and status-map validation.
+- Re-import a source case without creating a duplicate.
+- Search and filter cases by institution, permanent ID, case ID, bureau, region, state, category, status, dates, and SLA state.
+- Review case details, source fields, action history, and transfer requests.
+- Download a blank CSV template or a synthetic example from the import page.
 
-**SAKSHAM** solves this by establishing **one coordinated operational picture**:
-1. **Deterministic & Fuzzy Identity Resolution**: Resolves arbitrary input names to official AICTE Permanent IDs (PID).
-2. **Cross-Bureau Overlap Detection**: Uncovers parallel and overlapping complaints filed across different bureaus.
-3. **Audited Officer Decisions**: Facilitates human-in-the-loop review, coordinated transfers, and shared case notes.
-4. **SLA Monitoring & Escalation Scoring**: Automated real-time alerts for stale, overdue, and urgent cases.
-5. **Disha AI Assistant**: Conversational assistant powered by Sarvam AI for immediate grievance triage and guidelines lookup.
+### Institution matching
 
----
+- Match an institution using its AICTE Permanent ID when available.
+- Suggest possible matches using normalized names and location signals.
+- Review and confirm or reject uncertain matches.
 
-## 🖥️ Platform Preview
+### Cross-bureau coordination
 
-![SAKSHAM Dashboard Overview](docs/assets/dashboard_preview.png)
+- Identify open cases for the same matched institution across different Bureaus or Cells.
+- Review the evidence and record a decision to confirm, relate, or reject a suggested overlap.
+- Add coordination messages and receive in-app notifications.
+- Request and respond to case transfers.
 
-*SAKSHAM overview dashboard featuring real-time workload counts, active SLA risks, priority distribution, and recent intake records.*
+### SLA monitoring and reports
 
----
+- View due-soon, overdue, stale, and other case alerts.
+- Record workflow updates, next actions, deadlines, and remarks, subject to account permissions.
+- Export the case register as CSV, Excel, or PDF.
+- Review matching precision and recall against the included synthetic benchmark labels.
 
-## 🚀 Key Features
+### Disha AI assistant
 
-### 1. 🏛️ National Case Register & Intake
-- Centralized register of all complaints and compliance filings across all AICTE Bureaus.
-- Repeat-safe CSV intake with automatic validation, canonical status mapping, and duplicate handling.
-- Multi-filter search by Bureau, resolution state, institution, and priority ranking.
+Disha is a floating help assistant available in the application. Configure a Sarvam API key to enable AI responses. The assistant offers general application guidance and does not have access to case records.
 
-### 2. 🔍 3-Tier Institution Matching
-- **Tier 1 (Exact PID)**: Instant, deterministic linkage when a valid AICTE Permanent ID is present.
-- **Tier 2 (Canonical Alias)**: Matches normalized institution names against pre-indexed institutional aliases.
-- **Tier 3 (Fuzzy Matcher)**: Levenshtein distance and token-ratio matching for misspelled or colloquially named colleges.
-- **Officer Match Queue**: Borderline suggestions (70%–89% confidence) route to an officer review screen for one-click confirmation.
-
-### 3. ⚡ Cross-Bureau Overlap Center
-- Flags overlapping complaints concerning the same institution across multiple bureaus (e.g. concurrent faculty salary complaints in PGRC and fraud allegations in Approval Bureau).
-- Audited coordination threads and in-app notifications between Bureau officers.
-- Transfer workflow allowing cases to be reassigned between Bureaus with complete provenance history.
-
-### 4. ⏱️ Automated SLA Alerts & Priority Scoring
-- Real-time priority calculation engine factoring in escalation status, overdue days, unresolved identity, and inactivity.
-- Automated Celery Beat task (`refresh_sla_alerts`) running every 15 minutes.
-- Comprehensive multi-format reporting: Instant export to **PDF**, **Excel**, and **CSV**.
-
-### 5. 🤖 Disha AI Assistant (Sarvam AI)
-- Built-in intelligent assistant floating across all platform views.
-- Answers procedural queries regarding AICTE approval norms, grievance categories, submission formats, and tracking.
-- Server-side API proxy ensures credentials and keys remain secure.
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 ```mermaid
 graph TD
-    A[Public / Institutional User] -->|Browses & Inquires| B[SAKSHAM Portal UI]
-    B -->|Interactive Query| C[Disha AI Helpdesk API]
-    C -->|Server-Side LLM Request| D[Sarvam AI Engine]
-    
-    E[Bureau Officer / Admin] -->|Sign In & Review| B
-    B -->|Case Intake / CSV| F[Complaints Service Layer]
-    F -->|Identity Resolution| G[Matching Engine]
-    G -->|Exact / Alias / Fuzzy| H[(PostgreSQL / SQLite)]
-    
-    F -->|Overlap Detection| I[Cross-Bureau Overlap Center]
-    I -->|Notifications & Decision Logs| H
-    
-    J[Celery Beat Scheduler] -->|Every 15 min| K[SLA Alert Worker]
-    K -->|Reconcile Overdue & Stale Cases| H
+    U[Officer or administrator] --> UI[SAKSHAM web application]
+    UI --> CASES[Case intake and workflow]
+    CASES --> MATCH[Institution matching]
+    CASES --> OVERLAP[Overlap review and coordination]
+    CASES --> SLA[SLA alerts and reports]
+    MATCH --> DB[(PostgreSQL or SQLite)]
+    OVERLAP --> DB
+    SLA --> DB
+    UI --> AI[Disha helpdesk API]
+    AI --> SARVAM[Sarvam AI]
+    CELERY[Celery Beat] --> SLA
 ```
 
----
-
-## 🌐 Live Deployment
+## Deployment
 
 | Environment | URL | Details |
-| :--- | :--- | :--- |
-| **Production / Cloud Demo** | [https://saksham-aicte.onrender.com/](https://saksham-aicte.onrender.com/) | Live cloud workspace on Render with synthetic demonstration data |
-| **Local Development** | `http://127.0.0.1:8000/` | Standard local execution |
-| **Admin Console** | [https://saksham-aicte.onrender.com/admin/](https://saksham-aicte.onrender.com/admin/) | Django administration with SAKSHAM emerald theme |
+| --- | --- | --- |
+| Cloud demo | [saksham-aicte.onrender.com](https://saksham-aicte.onrender.com/) | Demonstration workspace using synthetic data |
+| Local development | [127.0.0.1:8000](http://127.0.0.1:8000/) | Development server |
+| Admin console | [saksham-aicte.onrender.com/admin](https://saksham-aicte.onrender.com/admin/) | Django administration |
 
----
-
-## 🛠️ Local Development Setup
+## Local setup
 
 ### Prerequisites
-- **Python 3.10+** (Python 3.12 recommended)
-- **Git**
-- Optional: **Docker & Docker Desktop** (for containerized setup)
 
-### 1. Clone the Repository
+- Python 3.10 or later
+- Git
+- Optional: Docker Desktop
+
+### Install
+
 ```bash
 git clone https://github.com/chirag-433/revamp.git
 cd revamp
+python -m venv .venv
 ```
 
-### 2. Configure Virtual Environment & Dependencies
-```bash
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate       # On Linux/macOS
-# .\.venv\Scripts\Activate.ps1  # On Windows PowerShell
+Activate the virtual environment:
 
-# Install dependencies
-pip install --upgrade pip
+```bash
+source .venv/bin/activate
+```
+
+For Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
+### Configure environment
+
 ```bash
 cp .env.example .env
 ```
-*Edit `.env` to configure your `DJANGO_SECRET_KEY` and optional `SARVAM_API_KEY` for the Disha AI assistant.*
 
-### 4. Database Setup & Demo Seed
+Set `DJANGO_SECRET_KEY` in `.env`. To use Disha, set `SARVAM_API_KEY` as well.
+
+### Prepare the database
+
 ```bash
-# Run database migrations
 python manage.py migrate
-
-# Populate synthetic demonstration dataset (Institutions, Bureaus, Overlaps, Cases)
 python manage.py seed_demo
 python manage.py seed_match_benchmark
-
-# Create an administrator account
 python manage.py createsuperuser
 ```
 
-### 5. Launch the Development Server
+### Start the development server
+
 ```bash
 python manage.py runserver 127.0.0.1:8000
 ```
-Visit **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** in your browser.
 
----
+Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in a browser.
 
-## 🐳 Docker Deployment
+## Docker
 
-To launch the full production-ready stack (Web App + PostgreSQL + Redis + Celery Worker + Celery Beat):
+Start the application services:
 
 ```bash
-# Start all containers in the background
 docker compose up --build -d
-
-# Execute migrations and seed demo data inside the container
 docker compose exec web python manage.py migrate
 docker compose exec web python manage.py seed_demo
 docker compose exec web python manage.py seed_match_benchmark
 ```
-The application will be accessible at `http://localhost:8000`.
 
----
+The application is available at [http://localhost:8000](http://localhost:8000).
 
-## 🧪 Testing & Evaluation
+## Tests and evaluation
 
-SAKSHAM includes a comprehensive test suite covering intake validation, fuzzy matching thresholds, cross-bureau overlap detection, role authorization, and report generation:
+Run the Django test suite:
 
 ```bash
-# Run all automated tests
 python manage.py test
+```
 
-# Run matching evaluation benchmarks
+Run the matching benchmark:
+
+```bash
 python manage.py evaluate_benchmarks
 ```
 
----
-
-## 📂 Project Directory Structure
+## Project structure
 
 ```text
 revamp/
-├── complaints/               # Core application
-│   ├── models.py            # Case, Institution, Bureau, CaseLink, Coordination models
-│   ├── views.py             # Dashboard, Register, Overlap Center, Auth, and Reports views
-│   ├── services/            # Matching engine, overlap detector, SLA alerts, reports
-│   └── tests.py             # 43 automated unit and integration tests
-├── config/                  # Django project configuration (settings, urls, wsgi, celery)
-├── docs/                    # Architectural specs, traceability matrix, and runbooks
-│   └── assets/              # Diagram assets and dashboard preview screenshots
-├── static/                  # Static assets
-│   └── complaints/          # CSS design tokens, AICTE logo emblem, JavaScript utilities
-├── templates/               # Responsive HTML5 templates
-│   ├── admin/               # Custom branded Django admin login and console
-│   ├── complaints/          # Dashboard, Register, Overlap Center, Reports
-│   └── registration/        # Officer Sign In and Register cards
-├── Dockerfile               # Production container definition
-├── docker-compose.yml       # Multi-service stack (Django + Postgres + Redis + Celery)
-└── requirements.txt         # Project dependencies
+├── complaints/
+│   ├── management/commands/
+│   ├── migrations/
+│   ├── services/
+│   ├── admin.py
+│   ├── api.py
+│   ├── models.py
+│   ├── tests.py
+│   └── views.py
+├── config/
+├── docs/
+├── static/
+├── templates/
+├── Dockerfile
+├── docker-compose.yml
+├── manage.py
+└── requirements.txt
 ```
 
----
+## Demonstration scope
 
-## 🛡️ Scope & Demonstration Guardrails
+- Records and case narratives in the repository are synthetic.
+- Overlap detection creates coordination suggestions; it does not merge source cases.
+- Case history and coordination decisions are recorded for review.
+- Production integrations, source-system write-back, and real complainant data are outside the prototype scope.
 
-- **Synthetic Data**: All institution records, complainant references, and grievance narratives in this repository are synthetic demonstration data created for prototyping.
-- **Coordination, Not Automatic Merge**: SAKSHAM flags cross-Bureau overlaps as coordination opportunities; legal decisions remain in the hands of authorized AICTE officers.
-- **Preserved Provenance**: Case history, status modifications, and officer coordination messages are stored in append-only timestamped audit logs.
+## License
 
----
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-Developed as part of the Smart India Hackathon (SIH) prototype initiative for AICTE Institution Complaint Redressal.
+Developed as a Smart India Hackathon prototype for AICTE institution grievance coordination.
